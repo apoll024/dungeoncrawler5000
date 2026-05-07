@@ -1,0 +1,16 @@
+services:
+  dungeoncrawler:
+    build: .
+    container_name: dungeoncrawler5000
+    ports:
+      - "5001:5001"
+    volumes:
+      - ./pdfs:/app/pdfs
+      - ./data:/app/data
+    environment:
+      - COPILOT_API_URL=https://api.githubcopilot.com/chat/completions
+      - COPILOT_OAUTH_TOKEN=${COPILOT_OAUTH_TOKEN}
+      - GITHUB_TOKEN=${GITHUB_TOKEN}
+      - COPILOT_FALLBACK_API_URL=https://models.github.ai/inference/chat/completions
+      - COPILOT_MODEL=gpt-4o-mini
+    restart: unless-stopped

@@ -1,0 +1,6 @@
+pdfs/
+data/
+*.pyc
+__pycache__/
+.env
+chunks/
