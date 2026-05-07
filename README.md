@@ -1,2 +1,3 @@
-# emailer5000
-Manages smtp relays and conversion to OAuth
+# dungeoncrawler5000
+
+generates settings, monsters, NPC's from your prompt/description
