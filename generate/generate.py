@@ -13,11 +13,8 @@ import requests
 sys.path.insert(0, str(Path(__file__).parent.parent))
 from search.query import search
 
-COPILOT_API_URL = os.getenv("COPILOT_API_URL", "https://api.githubcopilot.com/chat/completions")
-COPILOT_OAUTH_TOKEN = os.getenv("COPILOT_OAUTH_TOKEN", "")
-GITHUB_TOKEN = os.getenv("GITHUB_TOKEN", "")
-FALLBACK_URL = os.getenv("COPILOT_FALLBACK_API_URL", "https://models.github.ai/inference/chat/completions")
-MODEL = os.getenv("COPILOT_MODEL", "gpt-4o-mini")
+LLM_API_URL = os.getenv("LLM_API_URL", "http://ollama:11434/v1/chat/completions")
+MODEL = os.getenv("LLM_MODEL", "llama3.1:8b")
 
 NPC_SCHEMA = """{
   "name": str,
@@ -45,30 +42,18 @@ SETTING_SCHEMA = """{
 
 
 def call_llm(messages: list[dict]) -> str:
-    endpoints = []
-    if COPILOT_OAUTH_TOKEN:
-        endpoints.append((COPILOT_API_URL, COPILOT_OAUTH_TOKEN, "copilot"))
-    if GITHUB_TOKEN:
-        endpoints.append((FALLBACK_URL, GITHUB_TOKEN, "github_models"))
-
-    for url, token, kind in endpoints:
-        headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
-        if kind == "copilot":
-            headers["Copilot-Integration-Id"] = "vscode-chat"
-            headers["Editor-Version"] = "vscode/1.90.0"
-        else:
-            headers["X-GitHub-Api-Version"] = "2022-11-28"
-        try:
-            r = requests.post(url, headers=headers,
-                              json={"model": MODEL, "messages": messages, "max_tokens": 2000, "temperature": 0.7},
-                              timeout=30)
-            if r.ok:
-                return r.json()["choices"][0]["message"]["content"]
-            print(f"  [{kind}] {r.status_code}: {r.text[:200]}", file=sys.stderr)
-        except Exception as e:
-            print(f"  [{kind}] error: {e}", file=sys.stderr)
-
-    raise RuntimeError("All LLM endpoints failed.")
+    try:
+        r = requests.post(
+            LLM_API_URL,
+            headers={"Content-Type": "application/json"},
+            json={"model": MODEL, "messages": messages, "max_tokens": 2000, "temperature": 0.7},
+            timeout=120
+        )
+        if r.ok:
+            return r.json()["choices"][0]["message"]["content"]
+        raise RuntimeError(f"LLM API {r.status_code}: {r.text[:200]}")
+    except Exception as e:
+        raise RuntimeError(f"LLM call failed: {e}")
 
 
 def build_context(chunks: list[dict]) -> str:

@@ -1,4 +1,11 @@
 services:
+  ollama:
+    image: ollama/ollama
+    container_name: ollama
+    volumes:
+      - ollama_data:/root/.ollama
+    restart: unless-stopped
+
   dungeoncrawler:
     build: .
     container_name: dungeoncrawler5000
@@ -8,9 +15,11 @@ services:
       - ./pdfs:/app/pdfs
       - ./data:/app/data
     environment:
-      - COPILOT_API_URL=https://api.githubcopilot.com/chat/completions
-      - COPILOT_OAUTH_TOKEN=${COPILOT_OAUTH_TOKEN}
-      - GITHUB_TOKEN=${GITHUB_TOKEN}
-      - COPILOT_FALLBACK_API_URL=https://models.github.ai/inference/chat/completions
-      - COPILOT_MODEL=gpt-4o-mini
+      - LLM_API_URL=http://ollama:11434/v1/chat/completions
+      - LLM_MODEL=llama3.1:8b
+    depends_on:
+      - ollama
     restart: unless-stopped
+
+volumes:
+  ollama_data:
