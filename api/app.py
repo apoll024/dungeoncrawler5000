@@ -16,6 +16,15 @@ app = Flask(__name__)
 _ingest_lock = threading.Lock()
 
 
+@app.errorhandler(Exception)
+def handle_exception(e):
+    import traceback
+    return jsonify({"error": str(e), "detail": traceback.format_exc()[-500:]}), 500
+
+@app.errorhandler(500)
+def handle_500(e):
+    return jsonify({"error": str(e)}), 500
+
 # ── Status ────────────────────────────────────────────────────────────────────
 
 @app.route("/health")

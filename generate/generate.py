@@ -11,7 +11,8 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from search.query import search
 
 LLM_API_URL = os.getenv("LLM_API_URL", "http://ollama:11434/v1/chat/completions")
-MODEL       = os.getenv("LLM_MODEL", "llama3.1:8b")
+MODEL       = os.getenv("LLM_MODEL", "llama3.2:3b")
+GEN_TIMEOUT = int(os.getenv("LLM_TIMEOUT", "300"))
 
 NPC_SCHEMA = """{
   "name": str, "ancestry": str, "role": str, "appearance": str,
@@ -40,12 +41,12 @@ SETTING_SCHEMA = """{
 }"""
 
 
-def call_llm(messages: list[dict]) -> str:
+def call_llm(messages: list[dict], max_tokens: int = 1200) -> str:
     r = requests.post(
         LLM_API_URL,
         headers={"Content-Type": "application/json"},
-        json={"model": MODEL, "messages": messages, "max_tokens": 2000, "temperature": 0.7},
-        timeout=180,
+        json={"model": MODEL, "messages": messages, "max_tokens": max_tokens, "temperature": 0.7},
+        timeout=GEN_TIMEOUT,
     )
     if r.ok:
         return r.json()["choices"][0]["message"]["content"]
@@ -72,7 +73,7 @@ def ask_stream(question: str, history: list[dict] = None, top_k: int = 8) -> Gen
         LLM_API_URL,
         headers={"Content-Type": "application/json"},
         json={"model": MODEL, "messages": messages, "max_tokens": 2000, "temperature": 0.7, "stream": True},
-        timeout=180, stream=True,
+        timeout=GEN_TIMEOUT, stream=True,
     )
     if not r.ok:
         raise RuntimeError(f"LLM {r.status_code}: {r.text[:200]}")
