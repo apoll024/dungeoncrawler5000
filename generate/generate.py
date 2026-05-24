@@ -10,9 +10,16 @@ import requests
 sys.path.insert(0, str(Path(__file__).parent.parent))
 from search.query import search
 
-LLM_API_URL = os.getenv("LLM_API_URL", "http://ollama:11434/v1/chat/completions")
-MODEL       = os.getenv("LLM_MODEL", "llama3.2:3b")
-GEN_TIMEOUT = int(os.getenv("LLM_TIMEOUT", "300"))
+LLM_API_URL   = os.getenv("LLM_API_URL", "http://ollama:11434/v1/chat/completions")
+MODEL         = os.getenv("LLM_MODEL", "llama3.2:3b")
+GEN_TIMEOUT   = int(os.getenv("LLM_TIMEOUT", "60"))
+GITHUB_TOKEN  = os.getenv("GITHUB_TOKEN", "")
+
+def _llm_headers() -> dict:
+    h = {"Content-Type": "application/json"}
+    if GITHUB_TOKEN:
+        h["Authorization"] = f"Bearer {GITHUB_TOKEN}"
+    return h
 
 NPC_SCHEMA = """{
   "name": str, "ancestry": str, "role": str, "appearance": str,
@@ -42,7 +49,7 @@ SETTING_SCHEMA = """{
 def call_llm(messages: list[dict], max_tokens: int = 1200) -> str:
     r = requests.post(
         LLM_API_URL,
-        headers={"Content-Type": "application/json"},
+        headers=_llm_headers(),
         json={"model": MODEL, "messages": messages, "max_tokens": max_tokens, "temperature": 0.7},
         timeout=GEN_TIMEOUT,
     )
@@ -55,7 +62,7 @@ def call_llm_streaming(messages: list[dict], max_tokens: int = 1200) -> str:
     """Collect a full streamed response — avoids Ollama's 5-min non-streaming timeout."""
     r = requests.post(
         LLM_API_URL,
-        headers={"Content-Type": "application/json"},
+        headers=_llm_headers(),
         json={"model": MODEL, "messages": messages, "max_tokens": max_tokens,
               "temperature": 0.7, "stream": True},
         timeout=GEN_TIMEOUT, stream=True,
@@ -98,7 +105,7 @@ def ask_stream(question: str, history: list[dict] = None, top_k: int = 8) -> Gen
 
     r = requests.post(
         LLM_API_URL,
-        headers={"Content-Type": "application/json"},
+        headers=_llm_headers(),
         json={"model": MODEL, "messages": messages, "max_tokens": 2000, "temperature": 0.7, "stream": True},
         timeout=GEN_TIMEOUT, stream=True,
     )
