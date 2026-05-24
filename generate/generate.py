@@ -25,12 +25,10 @@ MONSTER_SCHEMA = """{
   "name": str, "size": str, "type": str, "alignment": str,
   "challenge_rating": str, "xp": int, "hit_points": str, "armor_class": str, "speed": str,
   "ability_scores": {"str": int, "dex": int, "con": int, "int": int, "wis": int, "cha": int},
-  "saving_throws": [str], "skills": [str], "damage_resistances": [str],
-  "condition_immunities": [str], "senses": str, "languages": str,
+  "senses": str, "languages": str,
   "special_abilities": [{"name": str, "description": str}],
   "actions": [{"name": str, "description": str}],
-  "legendary_actions": [{"name": str, "description": str}],
-  "description": str, "habitat": str, "lore": str
+  "description": str, "lore": str
 }"""
 
 SETTING_SCHEMA = """{
@@ -115,7 +113,7 @@ def generate_npc(description: str, top_k: int = 6) -> str:
     return call_llm(messages)
 
 
-def generate_monster(description: str, top_k: int = 8) -> str:
+def generate_monster(description: str, top_k: int = 4) -> str:
     query    = (description or "random creature monster stat block") + " monster abilities actions CR"
     chunks   = search(query, top_k)
     context  = build_context(chunks)
