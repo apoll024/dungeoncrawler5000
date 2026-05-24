@@ -51,6 +51,35 @@ def call_llm(messages: list[dict], max_tokens: int = 1200) -> str:
     raise RuntimeError(f"LLM {r.status_code}: {r.text[:200]}")
 
 
+def call_llm_streaming(messages: list[dict], max_tokens: int = 1200) -> str:
+    """Collect a full streamed response — avoids Ollama's 5-min non-streaming timeout."""
+    r = requests.post(
+        LLM_API_URL,
+        headers={"Content-Type": "application/json"},
+        json={"model": MODEL, "messages": messages, "max_tokens": max_tokens,
+              "temperature": 0.7, "stream": True},
+        timeout=GEN_TIMEOUT, stream=True,
+    )
+    if not r.ok:
+        raise RuntimeError(f"LLM {r.status_code}: {r.text[:200]}")
+    parts = []
+    for line in r.iter_lines():
+        if not line:
+            continue
+        text = line.decode("utf-8") if isinstance(line, bytes) else line
+        if text.startswith("data: "):
+            payload = text[6:]
+            if payload.strip() == "[DONE]":
+                break
+            try:
+                delta = json.loads(payload)["choices"][0]["delta"].get("content", "")
+                if delta:
+                    parts.append(delta)
+            except Exception:
+                continue
+    return "".join(parts)
+
+
 def ask_stream(question: str, history: list[dict] = None, top_k: int = 8) -> Generator[str, None, None]:
     """Yield response tokens as a streaming SSE generator."""
     chunks   = search(question, top_k)
@@ -126,7 +155,7 @@ def generate_monster(description: str, top_k: int = 4) -> str:
         )},
         {"role": "user", "content": f"Generate a complete monster stat block: {description or 'a random unique creature'}\n\nSourcebook passages:\n{context}"},
     ]
-    return call_llm(messages)
+    return call_llm_streaming(messages)
 
 
 def generate_setting(description: str, top_k: int = 6) -> str:
