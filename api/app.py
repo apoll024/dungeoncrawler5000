@@ -150,7 +150,7 @@ def api_chat():
 
 @app.route("/api/generate/npc", methods=["POST"])
 def api_npc():
-    data   = request.json or {}
+    data   = request.get_json(silent=True) or {}
     result = generate_npc(data.get("description", ""), data.get("top", 6))
     try:
         return jsonify({"npc": json.loads(result)})
@@ -160,7 +160,7 @@ def api_npc():
 
 @app.route("/api/generate/monster", methods=["POST"])
 def api_monster():
-    data   = request.json or {}
+    data   = request.get_json(silent=True) or {}
     result = generate_monster(data.get("description", ""), data.get("top", 8))
     try:
         return jsonify({"monster": json.loads(result)})
@@ -170,7 +170,7 @@ def api_monster():
 
 @app.route("/api/generate/setting", methods=["POST"])
 def api_setting():
-    data   = request.json or {}
+    data   = request.get_json(silent=True) or {}
     result = generate_setting(data.get("description", ""), data.get("top", 6))
     try:
         return jsonify({"setting": json.loads(result)})
@@ -182,21 +182,22 @@ def api_setting():
 
 @app.route("/search", methods=["POST"])
 def search_route():
-    data    = request.json
+    data    = request.get_json(silent=True) or {}
     results = search(data.get("query", ""), data.get("top", 8), data.get("source"))
     return jsonify({"results": results})
 
 
 @app.route("/ask", methods=["POST"])
 def ask_route():
-    data = request.json
+    data = request.get_json(silent=True) or {}
     return jsonify({"answer": "".join(ask_stream(data.get("question", "")))})
 
 
 @app.route("/ingest", methods=["POST"])
 def ingest_route():
-    data     = request.json
+    data     = request.get_json(silent=True) or {}
     pdf_path = data.get("pdf_path")
+    source   = data.get("source")
     source   = data.get("source")
     if not pdf_path or not source:
         return jsonify({"error": "pdf_path and source required"}), 400
