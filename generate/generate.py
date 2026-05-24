@@ -1,12 +1,9 @@
-"""
+﻿"""
 RAG generation: retrieve relevant passages then generate D&D content.
-Usage:
-    python generate/generate.py ask "How does grappling work?"
-    python generate/generate.py npc "A disgraced city guard turned bounty hunter"
-    python generate/generate.py setting "Coastal town plagued by a drowned god"
 """
 import argparse, json, os, sys
 from pathlib import Path
+from typing import Generator
 
 import requests
 
@@ -14,118 +11,148 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from search.query import search
 
 LLM_API_URL = os.getenv("LLM_API_URL", "http://ollama:11434/v1/chat/completions")
-MODEL = os.getenv("LLM_MODEL", "llama3.1:8b")
+MODEL       = os.getenv("LLM_MODEL", "llama3.1:8b")
 
 NPC_SCHEMA = """{
-  "name": str,
-  "ancestry": str,
-  "role": str,
-  "appearance": str,
-  "personality_traits": [str, str],
-  "ideal": str,
-  "bond": str,
-  "flaw": str,
-  "backstory": str,
-  "plot_hooks": [str, str, str],
+  "name": str, "ancestry": str, "role": str, "appearance": str,
+  "personality_traits": [str, str], "ideal": str, "bond": str, "flaw": str,
+  "backstory": str, "plot_hooks": [str, str, str],
   "stat_block_suggestions": {"cr": str, "key_abilities": [str]}
 }"""
 
+MONSTER_SCHEMA = """{
+  "name": str, "size": str, "type": str, "alignment": str,
+  "challenge_rating": str, "xp": int, "hit_points": str, "armor_class": str, "speed": str,
+  "ability_scores": {"str": int, "dex": int, "con": int, "int": int, "wis": int, "cha": int},
+  "saving_throws": [str], "skills": [str], "damage_resistances": [str],
+  "condition_immunities": [str], "senses": str, "languages": str,
+  "special_abilities": [{"name": str, "description": str}],
+  "actions": [{"name": str, "description": str}],
+  "legendary_actions": [{"name": str, "description": str}],
+  "description": str, "habitat": str, "lore": str
+}"""
+
 SETTING_SCHEMA = """{
-  "name": str,
-  "premise": str,
-  "region_type": str,
+  "name": str, "premise": str, "region_type": str,
   "factions": [{"name": str, "description": str}],
-  "key_conflicts": [str, str],
-  "adventure_seeds": [str, str, str],
+  "key_conflicts": [str, str], "adventure_seeds": [str, str, str],
   "rumors": [str, str, str, str, str]
 }"""
 
 
 def call_llm(messages: list[dict]) -> str:
-    try:
-        r = requests.post(
-            LLM_API_URL,
-            headers={"Content-Type": "application/json"},
-            json={"model": MODEL, "messages": messages, "max_tokens": 2000, "temperature": 0.7},
-            timeout=120
-        )
-        if r.ok:
-            return r.json()["choices"][0]["message"]["content"]
-        raise RuntimeError(f"LLM API {r.status_code}: {r.text[:200]}")
-    except Exception as e:
-        raise RuntimeError(f"LLM call failed: {e}")
-
-
-def build_context(chunks: list[dict]) -> str:
-    return "\n\n".join(
-        f"[{c['source']}, p.{c['page']}]:\n{c['text']}"
-        for c in chunks
+    r = requests.post(
+        LLM_API_URL,
+        headers={"Content-Type": "application/json"},
+        json={"model": MODEL, "messages": messages, "max_tokens": 2000, "temperature": 0.7},
+        timeout=180,
     )
+    if r.ok:
+        return r.json()["choices"][0]["message"]["content"]
+    raise RuntimeError(f"LLM {r.status_code}: {r.text[:200]}")
+
+
+def ask_stream(question: str, history: list[dict] = None, top_k: int = 8) -> Generator[str, None, None]:
+    """Yield response tokens as a streaming SSE generator."""
+    chunks   = search(question, top_k)
+    context  = "\n\n".join(f"[{c['source']}, p.{c['page']}]:\n{c['text']}" for c in chunks)
+    messages = [
+        {"role": "system", "content": (
+            "You are a knowledgeable D&D rules reference assistant and storyteller. "
+            "Answer using the provided sourcebook passages as your primary reference. "
+            "Cite sources as (Book, p.N) when quoting rules. "
+            "Be helpful, evocative, and accurate to the official D&D 5e rules."
+        )},
+    ]
+    if history:
+        messages.extend(history)
+    messages.append({"role": "user", "content": f"{question}\n\n--- Source passages ---\n{context}"})
+
+    r = requests.post(
+        LLM_API_URL,
+        headers={"Content-Type": "application/json"},
+        json={"model": MODEL, "messages": messages, "max_tokens": 2000, "temperature": 0.7, "stream": True},
+        timeout=180, stream=True,
+    )
+    if not r.ok:
+        raise RuntimeError(f"LLM {r.status_code}: {r.text[:200]}")
+
+    for line in r.iter_lines():
+        if not line:
+            continue
+        text = line.decode("utf-8") if isinstance(line, bytes) else line
+        if text.startswith("data: "):
+            payload = text[6:]
+            if payload.strip() == "[DONE]":
+                return
+            try:
+                delta = json.loads(payload)["choices"][0]["delta"].get("content", "")
+                if delta:
+                    yield delta
+            except Exception:
+                continue
 
 
 def ask(question: str, top_k: int = 8) -> str:
-    chunks = search(question, top_k)
-    context = build_context(chunks)
+    return "".join(ask_stream(question, top_k=top_k))
+
+
+def build_context(chunks: list[dict]) -> str:
+    return "\n\n".join(f"[{c['source']}, p.{c['page']}]:\n{c['text']}" for c in chunks)
+
+
+def generate_npc(description: str, top_k: int = 6) -> str:
+    chunks   = search((description or "interesting NPC character background") + " NPC traits", top_k)
+    context  = build_context(chunks)
     messages = [
         {"role": "system", "content": (
-            "You are a D&D rules reference assistant. "
-            "Answer using ONLY the exact text from the provided source passages. "
-            "Quote the relevant rules directly and cite the source as (Book, p.N). "
-            "Do not add interpretation beyond what the text states."
+            "You are a D&D dungeon master assistant. Ground the NPC in official lore and mechanics. "
+            "Cite source + page where relevant. Return ONLY valid JSON matching this schema:\n" + NPC_SCHEMA
         )},
-        {"role": "user", "content": f"Question: {question}\n\nSource passages:\n{context}"}
+        {"role": "user", "content": f"Create a detailed NPC: {description or 'a random interesting NPC'}\n\nSourcebook passages:\n{context}"},
     ]
     return call_llm(messages)
 
 
-def generate_npc(description: str, top_k: int = 6) -> str:
-    chunks = search(description + " NPC character traits background", top_k)
-    context = build_context(chunks)
+def generate_monster(description: str, top_k: int = 8) -> str:
+    query    = (description or "random creature monster stat block") + " monster abilities actions CR"
+    chunks   = search(query, top_k)
+    context  = build_context(chunks)
     messages = [
         {"role": "system", "content": (
-            "You are a D&D dungeon master assistant. "
-            "Use the provided sourcebook passages to ground the NPC in official lore and mechanics. "
-            "Reference specific rules or lore where relevant (cite source + page). "
-            "Return valid JSON matching this schema:\n" + NPC_SCHEMA
+            "You are a D&D dungeon master assistant and monster designer. "
+            "Use the sourcebook passages to ground the creature in official lore and 5e mechanics. "
+            "Follow 5e monster design conventions for ability scores, CR, and action economy. "
+            "Return ONLY valid JSON matching this schema:\n" + MONSTER_SCHEMA
         )},
-        {"role": "user", "content": f"Create a detailed NPC: {description}\n\nSourcebook passages:\n{context}"}
+        {"role": "user", "content": f"Generate a complete monster stat block: {description or 'a random unique creature'}\n\nSourcebook passages:\n{context}"},
     ]
     return call_llm(messages)
 
 
 def generate_setting(description: str, top_k: int = 6) -> str:
-    chunks = search(description + " location region setting lore", top_k)
-    context = build_context(chunks)
+    chunks   = search((description or "dungeon location setting") + " location region lore", top_k)
+    context  = build_context(chunks)
     messages = [
         {"role": "system", "content": (
-            "You are a D&D dungeon master assistant. "
-            "Use the provided sourcebook passages to ground the setting in official lore and mechanics. "
-            "Reference specific rules or lore where relevant (cite source + page). "
-            "Return valid JSON matching this schema:\n" + SETTING_SCHEMA
+            "You are a D&D dungeon master assistant. Ground the setting in official lore. "
+            "Return ONLY valid JSON matching this schema:\n" + SETTING_SCHEMA
         )},
-        {"role": "user", "content": f"Create a detailed setting: {description}\n\nSourcebook passages:\n{context}"}
+        {"role": "user", "content": f"Create a detailed setting: {description or 'a random interesting location'}\n\nSourcebook passages:\n{context}"},
     ]
     return call_llm(messages)
 
 
-def main():
-    parser = argparse.ArgumentParser()
-    sub = parser.add_subparsers(dest="cmd")
-
-    p = sub.add_parser("ask"); p.add_argument("question"); p.add_argument("--top", type=int, default=8)
-    p = sub.add_parser("npc"); p.add_argument("description"); p.add_argument("--top", type=int, default=6)
-    p = sub.add_parser("setting"); p.add_argument("description"); p.add_argument("--top", type=int, default=6)
-
-    args = parser.parse_args()
-    if args.cmd == "ask":
-        print(ask(args.question, args.top))
-    elif args.cmd == "npc":
-        print(generate_npc(args.description, args.top))
-    elif args.cmd == "setting":
-        print(generate_setting(args.description, args.top))
-    else:
-        parser.print_help()
-
-
 if __name__ == "__main__":
-    main()
+    parser = argparse.ArgumentParser()
+    sub    = parser.add_subparsers(dest="cmd")
+    for cmd in ("ask", "npc", "monster", "setting"):
+        p = sub.add_parser(cmd)
+        p.add_argument("description", nargs="?", default="")
+        p.add_argument("--top", type=int, default=8)
+    args = parser.parse_args()
+    if   args.cmd == "ask":     print(ask(args.description, args.top))
+    elif args.cmd == "npc":     print(generate_npc(args.description, args.top))
+    elif args.cmd == "monster": print(generate_monster(args.description, args.top))
+    elif args.cmd == "setting": print(generate_setting(args.description, args.top))
+    else: parser.print_help()
