@@ -1,4 +1,4 @@
-"""SQLite tracking for ingested D&D sourcebooks."""
+"""SQLite tracking for ingested D&D sourcebooks + full chunk text store."""
 import sqlite3
 from datetime import datetime, timezone
 from pathlib import Path
@@ -19,6 +19,16 @@ def _conn():
             ingested_at TEXT
         )
     """)
+    # Full chunk text — written on every ingest so the AI always has a source
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS chunks (
+            id     TEXT PRIMARY KEY,
+            source TEXT NOT NULL,
+            page   INTEGER,
+            text   TEXT NOT NULL
+        )
+    """)
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_chunks_source ON chunks(source)")
     conn.commit()
     return conn
 
@@ -36,9 +46,51 @@ def list_books() -> list[dict]:
         return [dict(r) for r in conn.execute("SELECT * FROM books ORDER BY ingested_at").fetchall()]
 
 
+def store_chunks(chunks: list[dict]):
+    """Write chunk text to SQLite — called immediately after ingest so the AI can reference it."""
+    if not chunks:
+        return
+    with _conn() as conn:
+        conn.executemany(
+            "INSERT OR REPLACE INTO chunks (id, source, page, text) VALUES (?,?,?,?)",
+            [(c["id"], c["source"], c.get("page", 0), c["text"]) for c in chunks],
+        )
+
+
+def search_chunks(query: str, source: str = None, limit: int = 10) -> list[dict]:
+    """Fast keyword search over chunk text — no ML model required."""
+    terms = [t.strip() for t in query.split() if len(t.strip()) > 2]
+    if not terms:
+        return []
+    clauses = " AND ".join(["text LIKE ?" for _ in terms])
+    params  = [f"%{t}%" for t in terms]
+    if source:
+        clauses += " AND source = ?"
+        params.append(source)
+    params.append(limit)
+    with _conn() as conn:
+        rows = conn.execute(
+            f"SELECT id, source, page, text FROM chunks WHERE {clauses} LIMIT ?",
+            params,
+        ).fetchall()
+        return [dict(r) for r in rows]
+
+
+def get_chunks(source: str, limit: int = 50, offset: int = 0) -> list[dict]:
+    """Return all chunks for a source (paginated)."""
+    with _conn() as conn:
+        rows = conn.execute(
+            "SELECT id, source, page, substr(text,1,400) as text "
+            "FROM chunks WHERE source = ? ORDER BY page LIMIT ? OFFSET ?",
+            (source, limit, offset),
+        ).fetchall()
+        return [dict(r) for r in rows]
+
+
 def delete_book(source: str):
     with _conn() as conn:
         conn.execute("DELETE FROM books WHERE source = ?", (source,))
+        conn.execute("DELETE FROM chunks WHERE source = ?", (source,))
 
 
 def sync_from_chroma():

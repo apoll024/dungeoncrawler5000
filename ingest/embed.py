@@ -20,10 +20,10 @@ def get_collection():
 
 def embed_chunks(chunks: list[dict]):
     model = SentenceTransformer(MODEL_NAME)
-    col = get_collection()
+    col   = get_collection()
 
     texts = [c["text"] for c in chunks]
-    ids = [c["id"] for c in chunks]
+    ids   = [c["id"]   for c in chunks]
     metas = [{"source": c["source"], "page": c["page"]} for c in chunks]
 
     for i in range(0, len(chunks), BATCH):
@@ -32,7 +32,15 @@ def embed_chunks(chunks: list[dict]):
         col.upsert(ids=bi, embeddings=embeddings, documents=bt, metadatas=bm)
         print(f"  batch {i//BATCH + 1}: {len(bt)} chunks upserted")
 
-    print(f"[embed] index total: {col.count()} chunks")
+    # Write chunk text to SQLite immediately — AI needs this as primary reference
+    try:
+        from ingest.db import store_chunks
+        store_chunks(chunks)
+        print(f"[embed] {len(chunks)} chunks written to SQLite")
+    except Exception as e:
+        print(f"[embed] SQLite write warning: {e}")
+
+    print(f"[embed] ChromaDB total: {col.count()} chunks")
 
 
 def main():

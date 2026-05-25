@@ -10,8 +10,8 @@ import requests
 sys.path.insert(0, str(Path(__file__).parent.parent))
 from search.query import search
 
-LLM_API_URL   = os.getenv("LLM_API_URL", "http://ollama:11434/v1/chat/completions")
-MODEL         = os.getenv("LLM_MODEL", "llama3.2:3b")
+LLM_API_URL   = os.getenv("LLM_API_URL", "https://models.inference.ai.azure.com/chat/completions")
+MODEL         = os.getenv("LLM_MODEL", "gpt-4o")
 GEN_TIMEOUT   = int(os.getenv("LLM_TIMEOUT", "60"))
 GITHUB_TOKEN  = os.getenv("GITHUB_TOKEN", "")
 
@@ -88,20 +88,26 @@ def call_llm_streaming(messages: list[dict], max_tokens: int = 1200) -> str:
 
 
 def ask_stream(question: str, history: list[dict] = None, top_k: int = 8) -> Generator[str, None, None]:
-    """Yield response tokens as a streaming SSE generator."""
-    chunks   = search(question, top_k)
-    context  = "\n\n".join(f"[{c['source']}, p.{c['page']}]:\n{c['text']}" for c in chunks)
+    """Yield response tokens. Answers ONLY from uploaded sourcebook passages."""
+    chunks  = search(question, top_k)
+    context = build_context(chunks)
     messages = [
         {"role": "system", "content": (
-            "You are a knowledgeable D&D rules reference assistant and storyteller. "
-            "Answer using the provided sourcebook passages as your primary reference. "
-            "Cite sources as (Book, p.N) when quoting rules. "
-            "Be helpful, evocative, and accurate to the official D&D 5e rules."
+            "You are a D&D rules reference assistant. "
+            "You MUST answer ONLY from the sourcebook passages provided in the user message. "
+            "Cite every rule as (Source, p.N). "
+            "If no relevant passages were found (the passages section says NO PASSAGES FOUND), "
+            "tell the user that no books have been uploaded yet and they should use the Grimoire "
+            "panel to upload their PDF sourcebooks before asking questions. "
+            "Never answer from general knowledge or training data."
         )},
     ]
     if history:
         messages.extend(history)
-    messages.append({"role": "user", "content": f"{question}\n\n--- Source passages ---\n{context}"})
+    messages.append({
+        "role": "user",
+        "content": f"{question}\n\n--- Sourcebook passages (answer ONLY from these) ---\n{context}",
+    })
 
     r = requests.post(
         LLM_API_URL,
@@ -133,47 +139,66 @@ def ask(question: str, top_k: int = 8) -> str:
 
 
 def build_context(chunks: list[dict]) -> str:
+    if not chunks:
+        return "[NO PASSAGES FOUND — no books have been uploaded to the Grimoire yet]"
     return "\n\n".join(f"[{c['source']}, p.{c['page']}]:\n{c['text']}" for c in chunks)
 
 
 def generate_npc(description: str, top_k: int = 6) -> str:
-    chunks   = search((description or "interesting NPC character background") + " NPC traits", top_k)
-    context  = build_context(chunks)
+    chunks  = search((description or "NPC character background personality traits") + " NPC traits ancestry", top_k)
+    context = build_context(chunks)
     messages = [
         {"role": "system", "content": (
-            "You are a D&D dungeon master assistant. Ground the NPC in official lore and mechanics. "
-            "Cite source + page where relevant. Return ONLY valid JSON matching this schema:\n" + NPC_SCHEMA
+            "You are a D&D dungeon master assistant. "
+            "You MUST base your answer ONLY on the sourcebook passages provided below. "
+            "Do not use outside knowledge. Cite (Source, p.N) for every detail you draw from. "
+            "If no relevant passages were found, say so explicitly and refuse to fabricate. "
+            "Return ONLY valid JSON matching this schema:\n" + NPC_SCHEMA
         )},
-        {"role": "user", "content": f"Create a detailed NPC: {description or 'a random interesting NPC'}\n\nSourcebook passages:\n{context}"},
+        {"role": "user", "content": (
+            f"Create a detailed NPC: {description or 'a random interesting NPC'}\n\n"
+            f"--- Sourcebook passages (use ONLY these) ---\n{context}"
+        )},
     ]
     return call_llm(messages)
 
 
 def generate_monster(description: str, top_k: int = 4) -> str:
-    query    = (description or "random creature monster stat block") + " monster abilities actions CR"
-    chunks   = search(query, top_k)
-    context  = build_context(chunks)
+    query   = (description or "creature monster stat block abilities") + " monster CR actions abilities"
+    chunks  = search(query, top_k)
+    context = build_context(chunks)
     messages = [
         {"role": "system", "content": (
             "You are a D&D dungeon master assistant and monster designer. "
-            "Use the sourcebook passages to ground the creature in official lore and 5e mechanics. "
-            "Follow 5e monster design conventions for ability scores, CR, and action economy. "
+            "You MUST ground every value (HP, CR, ability scores, actions) in the sourcebook passages provided. "
+            "Do not invent stats from scratch — derive them from the passages. "
+            "Cite (Source, p.N) in the description/lore fields. "
+            "If no relevant passages were found, say so and refuse to fabricate. "
             "Return ONLY valid JSON matching this schema:\n" + MONSTER_SCHEMA
         )},
-        {"role": "user", "content": f"Generate a complete monster stat block: {description or 'a random unique creature'}\n\nSourcebook passages:\n{context}"},
+        {"role": "user", "content": (
+            f"Generate a complete 5e monster stat block: {description or 'a random unique creature'}\n\n"
+            f"--- Sourcebook passages (use ONLY these) ---\n{context}"
+        )},
     ]
     return call_llm_streaming(messages)
 
 
 def generate_setting(description: str, top_k: int = 6) -> str:
-    chunks   = search((description or "dungeon location setting") + " location region lore", top_k)
-    context  = build_context(chunks)
+    chunks  = search((description or "dungeon location region setting lore") + " location factions history", top_k)
+    context = build_context(chunks)
     messages = [
         {"role": "system", "content": (
-            "You are a D&D dungeon master assistant. Ground the setting in official lore. "
+            "You are a D&D dungeon master assistant. "
+            "You MUST base the setting ONLY on the sourcebook passages provided. "
+            "Cite (Source, p.N) in the premise and faction descriptions. "
+            "If no relevant passages were found, say so and refuse to fabricate. "
             "Return ONLY valid JSON matching this schema:\n" + SETTING_SCHEMA
         )},
-        {"role": "user", "content": f"Create a detailed setting: {description or 'a random interesting location'}\n\nSourcebook passages:\n{context}"},
+        {"role": "user", "content": (
+            f"Create a detailed D&D setting: {description or 'a random interesting location'}\n\n"
+            f"--- Sourcebook passages (use ONLY these) ---\n{context}"
+        )},
     ]
     return call_llm(messages)
 

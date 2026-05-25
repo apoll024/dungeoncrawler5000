@@ -9,7 +9,7 @@ from search.query import search
 from generate.generate import ask_stream, generate_npc, generate_monster, generate_setting
 from ingest.extract import extract_pages, chunk_pages
 from ingest.embed import embed_chunks, CHROMA_PATH, COLLECTION
-from ingest.db import list_books, record_book, delete_book, sync_from_chroma
+from ingest.db import list_books, record_book, delete_book, sync_from_chroma, search_chunks, get_chunks
 
 app = Flask(__name__)
 
@@ -34,25 +34,35 @@ def health():
 
 @app.route("/api/status")
 def api_status():
-    import chromadb, requests as _req
     try:
-        import chromadb
-        client = chromadb.PersistentClient(path=str(CHROMA_PATH))
-        col    = client.get_or_create_collection(COLLECTION)
-        chunks = col.count()
+        import chromadb as _cdb
+        client = _cdb.PersistentClient(path=str(CHROMA_PATH))
+        col    = _cdb.PersistentClient(path=str(CHROMA_PATH)).get_or_create_collection(COLLECTION)
+        vec_chunks = col.count()
     except Exception:
-        chunks = 0
+        vec_chunks = 0
 
-    ollama_url = os.getenv("LLM_API_URL", "http://ollama:11434/v1/chat/completions")
-    base_url   = ollama_url.replace("/v1/chat/completions", "")
+    # Count text chunks stored directly in SQLite
     try:
-        r      = _req.get(f"{base_url}/api/tags", timeout=3)
-        ollama = "online" if r.ok else "offline"
+        import sqlite3
+        from ingest.db import DB_PATH
+        conn = sqlite3.connect(str(DB_PATH))
+        sql_chunks = conn.execute("SELECT COUNT(*) FROM chunks").fetchone()[0]
+        conn.close()
     except Exception:
-        ollama = "offline"
+        sql_chunks = 0
 
-    books  = list_books()
-    return jsonify({"ollama": ollama, "books": len(books), "chunks": chunks})
+    token   = os.getenv("GITHUB_TOKEN", "")
+    llm_url = os.getenv("LLM_API_URL", "")
+    llm_ok  = bool(token and llm_url)
+
+    books = list_books()
+    return jsonify({
+        "llm":        "online" if llm_ok else "unconfigured",
+        "books":      len(books),
+        "chunks":     vec_chunks,
+        "sql_chunks": sql_chunks,
+    })
 
 
 # ── UI ────────────────────────────────────────────────────────────────────────
@@ -144,6 +154,36 @@ def api_chat():
         mimetype="text/event-stream",
         headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
     )
+
+
+# ── Library reference endpoints ───────────────────────────────────────────────
+
+@app.route("/api/search")
+def api_search():
+    """Search uploaded book content. mode=semantic (default) or keyword."""
+    q      = request.args.get("q", "").strip()
+    source = request.args.get("source") or None
+    mode   = request.args.get("mode", "semantic")
+    limit  = min(int(request.args.get("limit", 8)), 20)
+    if not q:
+        return jsonify([])
+    if mode == "keyword":
+        rows = search_chunks(q, source=source, limit=limit)
+        return jsonify([{"source": r["source"], "page": r["page"],
+                         "text": r["text"][:500], "score": None, "mode": "keyword"}
+                        for r in rows])
+    results = search(q, top_k=limit, source=source)
+    return jsonify([{"source": r["source"], "page": r["page"],
+                     "text": r["text"][:500], "score": r.get("score"), "mode": "semantic"}
+                    for r in results])
+
+
+@app.route("/api/chunks/<source>")
+def api_chunks_by_source(source):
+    """Browse stored chunk text for a specific book."""
+    limit  = min(int(request.args.get("limit", 50)), 200)
+    offset = int(request.args.get("offset", 0))
+    return jsonify(get_chunks(source.upper(), limit=limit, offset=offset))
 
 
 # ── Generators ────────────────────────────────────────────────────────────────
