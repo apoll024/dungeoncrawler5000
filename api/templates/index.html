@@ -30,6 +30,11 @@
     --glow2:     rgba(201,146,26,0.35);
   }
 
+  html {
+    height: 100%;
+    overflow: hidden;
+  }
+
   * { box-sizing: border-box; margin: 0; padding: 0; }
 
   body {
@@ -37,7 +42,7 @@
     color: var(--text);
     font-family: Georgia, 'Times New Roman', serif;
     font-size: 14px;
-    min-height: 100vh;
+    height: 100%;
     display: flex;
     flex-direction: column;
     overflow: hidden;
@@ -98,8 +103,8 @@
   .layout {
     display: flex;
     flex: 1;
+    min-height: 0;
     overflow: hidden;
-    height: calc(100vh - 54px - 34px);
   }
 
   /* ── Grimoire Sidebar ───────────────────────────────────────────────────── */
@@ -238,6 +243,7 @@
   /* ── Main Panel ─────────────────────────────────────────────────────────── */
   .main-panel {
     flex: 1;
+    min-height: 0;
     display: flex;
     flex-direction: column;
     overflow: hidden;
@@ -247,6 +253,8 @@
   /* ── Tab Bar ─────────────────────────────────────────────────────────────── */
   .tab-bar {
     display: flex;
+    flex-wrap: nowrap;
+    overflow-x: auto;
     gap: 0;
     border-bottom: 2px solid var(--border);
     background: var(--bg2);
@@ -274,7 +282,7 @@
   }
 
   /* ── Tab Panes ───────────────────────────────────────────────────────────── */
-  .tab-pane { display: none; flex: 1; overflow: hidden; flex-direction: column; }
+  .tab-pane { display: none; flex: 1; min-height: 0; overflow: hidden; flex-direction: column; }
   .tab-pane.active { display: flex; }
 
   /* ── Chat ────────────────────────────────────────────────────────────────── */

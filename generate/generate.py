@@ -226,15 +226,18 @@ def generate_setting(description: str, top_k: int = 6) -> str:
     return call_llm(messages)
 
 
-def generate_map(description: str, top_k: int = 4) -> str:
-    query   = (description or "dungeon map rooms corridors traps treasure") + " dungeon layout rooms passages"
-    chunks  = search(query, top_k)
+def generate_map(description: str, top_k: int = 6) -> str:
+    """Generate a 2D dungeon/location map grounded in uploaded sourcebooks."""
+    query  = (description or "dungeon map rooms corridors traps encounters") + " dungeon room corridor encounter layout"
+    chunks = search(query, top_k)
+    if not chunks:
+        raise RuntimeError("No sourcebook passages found. Upload your D&D PDFs via the Grimoire panel first.")
     context = build_context(chunks)
     messages = [
         {"role": "system", "content": (
             "You are a D&D dungeon cartographer. "
-            "Draw inspiration from the sourcebook passages provided, but you may create "
-            "dungeon layouts consistent with D&D 5e rules even if passages are sparse. "
+            "Draw inspiration from the sourcebook passages provided. "
+            "Cite (Source, p.N) in room descriptions. "
             "Generate a dungeon map as ONLY valid JSON matching this schema exactly — no markdown, no commentary:\n"
             + MAP_SCHEMA + "\n\n"
             "Rules:\n"
@@ -249,41 +252,6 @@ def generate_map(description: str, top_k: int = 4) -> str:
         {"role": "user", "content": f"Generate a dungeon map: {description or 'a random D&D dungeon'}"},
     ]
     return call_llm(messages, max_tokens=2500)
-
-
-MAP_SCHEMA = """{
-  "name": str, "type": str, "description": str,
-  "rooms": [{"id": int, "name": str, "description": str,
-             "exits": {"north": "int_or_null", "south": "int_or_null", "east": "int_or_null", "west": "int_or_null"},
-             "features": [str], "encounter": "str_or_null"}],
-  "legend": [str],
-  "ascii_map": str,
-  "lore": str
-}"""
-
-
-def generate_map(description: str, top_k: int = 6) -> str:
-    """Generate a 2D dungeon/location map grounded in uploaded sourcebooks."""
-    query  = (description or "dungeon map rooms corridors traps encounters") + " dungeon room corridor encounter layout"
-    chunks = search(query, top_k)
-    if not chunks:
-        raise RuntimeError("No sourcebook passages found. Upload your D&D PDFs via the Grimoire panel first.")
-    context = build_context(chunks)
-    messages = [
-        {"role": "system", "content": (
-            "You are a D&D dungeon master and cartographer. "
-            "You MUST base this map ONLY on the sourcebook passages provided. "
-            "Cite (Source, p.N) in room descriptions and lore. "
-            "Return ONLY valid JSON matching this schema "
-            "(ascii_map uses # walls, . floors, D doors, S start, E exit, T traps, M monsters):\n"
-            + MAP_SCHEMA
-        )},
-        {"role": "user", "content": (
-            f"Create a 2D dungeon map: {description or 'a classic D&D dungeon location'}\n\n"
-            f"--- Sourcebook passages (use ONLY these) ---\n{context}"
-        )},
-    ]
-    return call_llm(messages)
 
 
 if __name__ == "__main__":
