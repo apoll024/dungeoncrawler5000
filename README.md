@@ -35,9 +35,9 @@ curl -X POST http://192.168.1.55:5001/ask \
 ## Environment variables
 | Variable | Description |
 |---|---|
-| `COPILOT_OAUTH_TOKEN` | Copilot OAuth token (gpt-4o-mini) |
-| `GITHUB_TOKEN` | GitHub PAT (fallback via GitHub Models) |
-| `COPILOT_MODEL` | Model override (default: gpt-4o-mini) |
+| `GEMINI_API_KEY` | Google Gemini API key |
+| `LLM_API_URL` | OpenAI-compatible Gemini endpoint (default: `https://generativelanguage.googleapis.com/v1beta/openai/chat/completions`) |
+| `LLM_MODEL` | Model override (default: `gemini-3.5-flash`) |
 
 ## Book IDs (--source)
 Use short identifiers: `PHB`, `DMG`, `MM`, `TCE`, `XGE`, `VGM`, `MPMM`, etc.

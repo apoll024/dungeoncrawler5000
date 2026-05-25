@@ -8,7 +8,7 @@ services:
       - ./pdfs:/app/pdfs
       - ./data:/app/data
     environment:
-      - LLM_API_URL=https://models.inference.ai.azure.com/chat/completions
-      - LLM_MODEL=gpt-4o
-      - GITHUB_TOKEN=${GITHUB_TOKEN}
+      - LLM_API_URL=https://generativelanguage.googleapis.com/v1beta/openai/chat/completions
+      - LLM_MODEL=${LLM_MODEL:-gemini-3.5-flash}
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
     restart: unless-stopped

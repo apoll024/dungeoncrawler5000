@@ -10,15 +10,15 @@ import requests
 sys.path.insert(0, str(Path(__file__).parent.parent))
 from search.query import search
 
-LLM_API_URL   = os.getenv("LLM_API_URL", "https://models.inference.ai.azure.com/chat/completions")
-MODEL         = os.getenv("LLM_MODEL", "gpt-4o")
+LLM_API_URL   = os.getenv("LLM_API_URL", "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions")
+MODEL         = os.getenv("LLM_MODEL", "gemini-3.5-flash")
 GEN_TIMEOUT   = int(os.getenv("LLM_TIMEOUT", "60"))
-GITHUB_TOKEN  = os.getenv("GITHUB_TOKEN", "")
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
 
 def _llm_headers() -> dict:
     h = {"Content-Type": "application/json"}
-    if GITHUB_TOKEN:
-        h["Authorization"] = f"Bearer {GITHUB_TOKEN}"
+    if GEMINI_API_KEY:
+        h["Authorization"] = f"Bearer {GEMINI_API_KEY}"
     return h
 
 NPC_SCHEMA = """{
@@ -86,7 +86,7 @@ def _strip_json(text: str) -> str:
 
 
 def call_llm_streaming(messages: list[dict], max_tokens: int = 1200) -> str:
-    """Collect a full streamed response — avoids Ollama's 5-min non-streaming timeout."""
+    """Collect a full streamed response from the configured OpenAI-compatible LLM."""
     r = requests.post(
         LLM_API_URL,
         headers=_llm_headers(),
