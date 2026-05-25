@@ -89,32 +89,6 @@ def _monster_defaults(monster):
 def _setting_defaults(setting):
     if not isinstance(setting, dict):
         return setting
-
-
-def _fallback_map(description: str, raw: str):
-        theme = (description or "").strip() or "source-inspired dungeon"
-        name = "Source-Inspired " + theme[:52].strip().title()
-        rooms = [
-            (1, "Threshold Watch", "entrance", 4, 28, 7, 7, "A guarded entry point shaped by the requested sourcebook theme.", [2]),
-            (2, "Crooked Passage", "corridor", 12, 31, 9, 2, "A narrow connector with cover, echoes, and room for an ambush.", [1, 3, 4]),
-            (3, "Supply Den", "room", 23, 25, 8, 7, "A side chamber with signs of occupation and practical dungeon supplies.", [2]),
-            (4, "Crossroads Grotto", "chamber", 24, 34, 10, 8, "The central chamber; use source-derived lore details from the generator notes.", [2, 5, 6, 7]),
-            (5, "Hidden Cache", "treasure", 38, 26, 7, 7, "A concealed prize or clue that points deeper into the complex.", [4]),
-            (6, "Snare Hall", "trap", 38, 38, 8, 5, "A hazardous approach that rewards careful exploration.", [4, 8]),
-            (7, "Secret Cut", "secret", 25, 47, 6, 5, "A hidden route for scouts, prisoners, or monsters to bypass the main path.", [4, 9]),
-            (8, "Boss Chamber", "boss", 50, 35, 10, 10, "The final confrontation area tied to the requested dungeon premise.", [6]),
-            (9, "Lower Stair", "stairs", 34, 52, 6, 6, "A way down or out, useful for expanding the map into another level.", [7]),
-        ]
-        return {
-            "name": name,
-            "theme": f"{theme}. Fallback layout used after Gemini returned malformed map text.",
-            "rooms": [
-                {"id": rid, "name": rname, "type": rtype, "x": x, "y": y, "w": w, "h": h,
-                 "description": desc, "connections": links}
-                for rid, rname, rtype, x, y, w, h, desc, links in rooms
-            ],
-            "source_notes": (raw or "")[:800],
-        }
     setting.setdefault("name", "Source-Inspired Setting")
     setting.setdefault("premise", "")
     setting.setdefault("region_type", "")
@@ -123,6 +97,32 @@ def _fallback_map(description: str, raw: str):
         if not isinstance(setting[key], list):
             setting[key] = [str(setting[key])]
     return setting
+
+
+def _fallback_map(description: str, raw: str):
+    theme = (description or "").strip() or "source-inspired dungeon"
+    name = "Source-Inspired " + theme[:52].strip().title()
+    rooms = [
+        (1, "Threshold Watch", "entrance", 4, 28, 7, 7, "A guarded entry point shaped by the requested sourcebook theme.", [2]),
+        (2, "Crooked Passage", "corridor", 12, 31, 9, 2, "A narrow connector with cover, echoes, and room for an ambush.", [1, 3, 4]),
+        (3, "Supply Den", "room", 23, 25, 8, 7, "A side chamber with signs of occupation and practical dungeon supplies.", [2]),
+        (4, "Crossroads Grotto", "chamber", 24, 34, 10, 8, "The central chamber; use source-derived lore details from the generator notes.", [2, 5, 6, 7]),
+        (5, "Hidden Cache", "treasure", 38, 26, 7, 7, "A concealed prize or clue that points deeper into the complex.", [4]),
+        (6, "Snare Hall", "trap", 38, 38, 8, 5, "A hazardous approach that rewards careful exploration.", [4, 8]),
+        (7, "Secret Cut", "secret", 25, 47, 6, 5, "A hidden route for scouts, prisoners, or monsters to bypass the main path.", [4, 9]),
+        (8, "Boss Chamber", "boss", 50, 35, 10, 10, "The final confrontation area tied to the requested dungeon premise.", [6]),
+        (9, "Lower Stair", "stairs", 34, 52, 6, 6, "A way down or out, useful for expanding the map into another level.", [7]),
+    ]
+    return {
+        "name": name,
+        "theme": f"{theme}. Fallback layout used after Gemini returned malformed map text.",
+        "rooms": [
+            {"id": rid, "name": rname, "type": rtype, "x": x, "y": y, "w": w, "h": h,
+             "description": desc, "connections": links}
+            for rid, rname, rtype, x, y, w, h, desc, links in rooms
+        ],
+        "source_notes": (raw or "")[:800],
+    }
 
 
 @app.errorhandler(Exception)
