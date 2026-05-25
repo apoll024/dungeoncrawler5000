@@ -197,20 +197,25 @@ def retrieve_context(query: str, top_k: int, fallback_query: str) -> tuple[list[
     return chunks, []
 
 
-def build_context(chunks: list[dict], training: list[dict] = None) -> str:
+def build_context(chunks: list[dict], training: list[dict] = None, max_chars: int = 12000) -> str:
     parts = []
     if training:
         parts.append("--- Source-derived training material ---")
-        parts.extend(
-            f"[{t['source']}, p.{t['page']}, {t.get('kind','reference')}] {t.get('title') or 'Training item'}:\n{t['content']}"
-            for t in training
-        )
+        for t in training:
+            text = str(t.get("content") or "")[:900]
+            parts.append(f"[{t['source']}, p.{t['page']}, {t.get('kind','reference')}] {t.get('title') or 'Training item'}:\n{text}")
+            if sum(len(p) for p in parts) >= max_chars:
+                break
     if chunks:
         parts.append("--- Raw sourcebook passages ---")
-        parts.extend(f"[{c['source']}, p.{c['page']}]:\n{c['text']}" for c in chunks)
+        for c in chunks:
+            text = str(c.get("text") or "")[:1200]
+            parts.append(f"[{c['source']}, p.{c['page']}]:\n{text}")
+            if sum(len(p) for p in parts) >= max_chars:
+                break
     if not parts:
         return "[NO SOURCE-DERIVED MATERIAL FOUND — upload books or rebuild training material]"
-    return "\n\n".join(parts)
+    return "\n\n".join(parts)[:max_chars]
 
 
 def generate_npc(description: str, top_k: int = 6) -> str:
@@ -218,7 +223,7 @@ def generate_npc(description: str, top_k: int = 6) -> str:
     chunks, training = retrieve_context(query, top_k, "NPC character background personality traits ancestry")
     if not chunks and not training:
         raise RuntimeError("No sourcebook passages found. Upload your D&D PDFs via the Grimoire panel first.")
-    context = build_context(chunks, training)
+    context = build_context(chunks, training, max_chars=6000)
     messages = [
         {"role": "system", "content": (
             "You are a D&D dungeon master assistant. "
@@ -231,7 +236,7 @@ def generate_npc(description: str, top_k: int = 6) -> str:
             f"--- DC5000 source database context ---\n{context}"
         )},
     ]
-    return _strip_json(call_llm(messages))
+    return _strip_json(call_llm(messages, max_tokens=3000))
 
 
 def generate_monster(description: str, top_k: int = 4) -> str:
@@ -239,7 +244,7 @@ def generate_monster(description: str, top_k: int = 4) -> str:
     chunks, training = retrieve_context(query, top_k, "creature monster stat block abilities CR actions")
     if not chunks and not training:
         raise RuntimeError("No sourcebook passages found. Upload your D&D PDFs via the Grimoire panel first.")
-    context = build_context(chunks, training)
+    context = build_context(chunks, training, max_chars=6500)
     messages = [
         {"role": "system", "content": (
             "You are a D&D dungeon master assistant and monster designer. "
@@ -252,7 +257,7 @@ def generate_monster(description: str, top_k: int = 4) -> str:
             f"--- DC5000 source database context ---\n{context}"
         )},
     ]
-    return _strip_json(call_llm_streaming(messages))
+    return _strip_json(call_llm_streaming(messages, max_tokens=3500))
 
 
 def generate_setting(description: str, top_k: int = 6) -> str:
@@ -260,7 +265,7 @@ def generate_setting(description: str, top_k: int = 6) -> str:
     chunks, training = retrieve_context(query, top_k, "dungeon location region setting lore factions history")
     if not chunks and not training:
         raise RuntimeError("No sourcebook passages found. Upload your D&D PDFs via the Grimoire panel first.")
-    context = build_context(chunks, training)
+    context = build_context(chunks, training, max_chars=6000)
     messages = [
         {"role": "system", "content": (
             "You are a D&D dungeon master assistant. "
@@ -273,7 +278,7 @@ def generate_setting(description: str, top_k: int = 6) -> str:
             f"--- DC5000 source database context ---\n{context}"
         )},
     ]
-    return _strip_json(call_llm(messages))
+    return _strip_json(call_llm(messages, max_tokens=3000))
 
 
 def generate_map(description: str, top_k: int = 6) -> str:
@@ -282,7 +287,7 @@ def generate_map(description: str, top_k: int = 6) -> str:
     chunks, training = retrieve_context(query, top_k, "dungeon map rooms corridors traps encounters layout")
     if not chunks and not training:
         raise RuntimeError("No sourcebook passages found. Upload your D&D PDFs via the Grimoire panel first.")
-    context = build_context(chunks, training)
+    context = build_context(chunks, training, max_chars=5500)
     messages = [
         {"role": "system", "content": (
             "You are a D&D dungeon cartographer. "

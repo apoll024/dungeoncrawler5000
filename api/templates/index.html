@@ -1471,7 +1471,7 @@ async function generateMap(useInput) {
     }).then(r => r.json());
 
     if (d.error) throw new Error(d.error);
-    const mapData = d.map;
+    const mapData = maybeParseGenerated(d.map);
     if (typeof mapData === 'object' && mapData.rooms) {
       renderMap(mapData);
     } else {
