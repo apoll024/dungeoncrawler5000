@@ -455,7 +455,7 @@
 
   .gen-output {
     flex: 1;
-    min-height: 0;
+    min-height: 320px;
     overflow-y: auto;
     background: var(--surface);
     border: 1px solid var(--border);
@@ -633,7 +633,7 @@
   /* ── Map canvas area ─────────────────────────────────────────────────────── */
   .map-wrap {
     flex: 1;
-    min-height: 0;
+    min-height: 320px;
     overflow: auto;
     background: var(--surface);
     border: 1px solid var(--border);
@@ -681,6 +681,23 @@
     display: inline-block; border-radius: 3px; padding: 1px 6px;
     font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px;
     font-family: 'Courier New', monospace; border: 1px solid rgba(255,255,255,.1);
+  }
+
+  @media (max-width: 760px) {
+    html, body { overflow: auto; height: auto; min-height: 100%; }
+    .layout { flex-direction: column; overflow: visible; }
+    .sidebar { width: 100%; max-height: 42vh; border-right: 0; border-bottom: 2px solid var(--border); }
+    .main-panel { min-height: 85vh; overflow: visible; }
+    .tab-bar { flex-wrap: nowrap; }
+    .tab { padding: 10px 14px; font-size: 11px; }
+    .gen-pane { padding: 10px; }
+    .gen-form { flex-direction: column; }
+    textarea.gen-input { width: 100%; min-height: 78px; }
+    .gen-btn { width: 100%; align-self: auto; }
+    .gen-output, .map-wrap { min-height: 55vh; }
+    .chat-input-row { flex-wrap: wrap; }
+    .chat-send { width: 100%; }
+    .status-bar { flex-wrap: wrap; height: auto; min-height: 34px; padding: 6px 10px; }
   }
 </style>
 </head>
@@ -1028,6 +1045,7 @@ function appendMsg(role, text) {
 }
 
 function escHtml(s) {
+  s = s == null ? '' : String(s);
   return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 }
 
@@ -1181,7 +1199,7 @@ async function generateMonster(useInput) {
 function renderMonster(m) {
   m = m || {};
   const abs = m.ability_scores || {};
-  const modStr = v => { const mod = Math.floor((parseInt(v)||10 - 10)/2); return (mod >= 0 ? '+' : '') + mod; };
+  const modStr = v => { const score = parseInt(v, 10) || 10; const mod = Math.floor((score - 10)/2); return (mod >= 0 ? '+' : '') + mod; };
 
   const abilRow = ['str','dex','con','int','wis','cha'].map(a => `
     <div class="ability-cell">
@@ -1261,7 +1279,9 @@ function renderSetting(s) {
     `<div style="margin-bottom:4px"><span style="color:var(--gold);font-weight:700">${i+1}.</span> ${escHtml(item)}</div>`
   ).join('');
   const factions = (Array.isArray(s.factions) ? s.factions : []).map(f =>
-    `<div class="action-item"><span class="action-name">${escHtml(f.name || 'Faction')}.</span> <span class="action-desc">${escHtml(f.description || '')}</span></div>`
+    typeof f === 'string'
+      ? `<div class="action-item"><span class="action-desc">${escHtml(f)}</span></div>`
+      : `<div class="action-item"><span class="action-name">${escHtml(f.name || 'Faction')}.</span> <span class="action-desc">${escHtml(f.description || '')}</span></div>`
   ).join('');
   return `<div class="npc-card">
     <div class="card-header">
@@ -1374,7 +1394,15 @@ function renderMap(data) {
     ctx.beginPath(); ctx.moveTo(0, y*CELL); ctx.lineTo(W, y*CELL); ctx.stroke();
   }
 
-  const rooms = Array.isArray(data.rooms) ? data.rooms : [];
+  const rooms = (Array.isArray(data.rooms) ? data.rooms : []).map((room, idx) => ({
+    ...room,
+    id: Number(room.id ?? idx + 1),
+    x: Number(room.x ?? 0),
+    y: Number(room.y ?? 0),
+    w: Math.max(1, Number(room.w ?? 6)),
+    h: Math.max(1, Number(room.h ?? 6)),
+    connections: Array.isArray(room.connections) ? room.connections.map(Number).filter(Number.isFinite) : [],
+  }));
 
   // Draw connection lines first (beneath rooms)
   ctx.strokeStyle = 'rgba(201,146,26,0.35)';
