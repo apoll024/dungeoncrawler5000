@@ -464,17 +464,6 @@
     box-shadow: inset 0 2px 12px rgba(0,0,0,0.3);
   }
 
-  /* Generator tabs: output expands to content, page scrolls */
-  .gen-tab { overflow-y: auto; }
-  .gen-tab .gen-pane { overflow: visible; height: auto; }
-  .gen-tab .gen-output,
-  .gen-tab .map-wrap {
-    flex: none;
-    height: auto;
-    min-height: 180px;
-    overflow: visible;
-  }
-
   .gen-placeholder {
     color: var(--muted2);
     font-style: italic;
@@ -785,8 +774,6 @@
         <button class="chat-send" id="chat-send" onclick="sendChat()">Consult Oracle ⟶</button>
       </div>
     </div>
-  </div>
-</div>
 
     <!-- NPC -->
     <div class="tab-pane gen-tab" id="pane-npc">
@@ -865,6 +852,9 @@
       </div>
     </div>
 
+  </div>
+</div>
+
 <!-- ── STATUS BAR ───────────────────────────────────────────────────────────── -->
 <div class="status-bar">
   <div class="sb-item"><div class="sb-dot" id="sb-llm"></div><span id="sb-llm-txt">LLM: checking</span></div>
@@ -886,6 +876,18 @@ let chatStreaming = false;
 function switchTab(name) {
   document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab === name));
   document.querySelectorAll('.tab-pane').forEach(p => p.classList.toggle('active', p.id === 'pane-' + name));
+}
+
+function maybeParseGenerated(value) {
+  if (typeof value !== 'string') return value;
+  const trimmed = value.trim();
+  if (!trimmed.startsWith('{')) return value;
+  try { return JSON.parse(trimmed); } catch(e) {}
+  const end = trimmed.lastIndexOf('}');
+  if (end > 0) {
+    try { return JSON.parse(trimmed.slice(0, end + 1)); } catch(e) {}
+  }
+  return value;
 }
 
 // ── Status polling ─────────────────────────────────────────────────────────
@@ -1108,7 +1110,7 @@ async function generateNPC(useInput) {
     }).then(r => r.json());
 
     if (d.error) throw new Error(d.error);
-    const npc = d.npc;
+    const npc = maybeParseGenerated(d.npc);
     if (!npc) throw new Error('Generator returned no NPC content.');
     if (typeof npc === 'string') {
       out.innerHTML = `<div class="npc-card"><div class="card-header"><div class="card-name">NPC</div></div><pre style="white-space:pre-wrap;color:var(--text);font-family:Georgia,serif;line-height:1.6">${escHtml(npc)}</pre></div>`;
@@ -1162,7 +1164,7 @@ async function generateMonster(useInput) {
       body: JSON.stringify({description: desc}),
     }).then(r => r.json());
 
-    const m = d.monster;
+    const m = maybeParseGenerated(d.monster);
     if (d.error) throw new Error(d.error);
     if (!m) throw new Error('Generator returned no monster content.');
     if (typeof m === 'string') {
@@ -1240,7 +1242,7 @@ async function generateSetting(useInput) {
     }).then(r => r.json());
 
     if (d.error) throw new Error(d.error);
-    const setting = d.setting;
+    const setting = maybeParseGenerated(d.setting);
     if (!setting) throw new Error('Generator returned no setting content.');
     if (typeof setting === 'string') {
       out.innerHTML = `<div class="npc-card"><pre style="white-space:pre-wrap;color:var(--text);font-family:Georgia,serif;line-height:1.6">${escHtml(setting)}</pre></div>`;

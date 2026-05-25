@@ -27,7 +27,13 @@ def _parse_generated_json(raw: str):
         if clean.startswith("json"):
             clean = clean[4:]
         clean = clean.strip()
-    return json.loads(clean)
+    try:
+        return json.loads(clean)
+    except Exception:
+        start = clean.find("{")
+        if start < 0:
+            raise
+        return json.JSONDecoder().raw_decode(clean[start:])[0]
 
 
 def _npc_defaults(npc):
@@ -52,6 +58,45 @@ def _npc_defaults(npc):
         npc["stat_block_suggestions"] = {"cr": "", "key_abilities": []}
     npc["stat_block_suggestions"].setdefault("key_abilities", [])
     return npc
+
+
+def _monster_defaults(monster):
+    if not isinstance(monster, dict):
+        return monster
+    monster.setdefault("name", "Source-Inspired Creature")
+    monster.setdefault("size", "")
+    monster.setdefault("type", "")
+    monster.setdefault("alignment", "")
+    monster.setdefault("challenge_rating", "?")
+    monster.setdefault("xp", 0)
+    monster.setdefault("hit_points", "?")
+    monster.setdefault("armor_class", "?")
+    monster.setdefault("speed", "?")
+    monster.setdefault("ability_scores", {})
+    monster.setdefault("senses", "")
+    monster.setdefault("languages", "")
+    monster.setdefault("special_abilities", [])
+    monster.setdefault("actions", [])
+    monster.setdefault("description", "")
+    monster.setdefault("lore", "")
+    for key in ("special_abilities", "actions", "legendary_actions", "saving_throws",
+                "skills", "damage_resistances", "condition_immunities"):
+        if key in monster and not isinstance(monster[key], list):
+            monster[key] = [str(monster[key])]
+    return monster
+
+
+def _setting_defaults(setting):
+    if not isinstance(setting, dict):
+        return setting
+    setting.setdefault("name", "Source-Inspired Setting")
+    setting.setdefault("premise", "")
+    setting.setdefault("region_type", "")
+    for key in ("factions", "key_conflicts", "adventure_seeds", "rumors"):
+        setting.setdefault(key, [])
+        if not isinstance(setting[key], list):
+            setting[key] = [str(setting[key])]
+    return setting
 
 
 @app.errorhandler(Exception)
@@ -259,7 +304,7 @@ def api_monster():
     data   = request.get_json(silent=True) or {}
     result = generate_monster(data.get("description", ""), data.get("top", 8))
     try:
-        return jsonify({"monster": _parse_generated_json(result)})
+        return jsonify({"monster": _monster_defaults(_parse_generated_json(result))})
     except Exception:
         return jsonify({"monster": result})
 
@@ -269,7 +314,7 @@ def api_setting():
     data   = request.get_json(silent=True) or {}
     result = generate_setting(data.get("description", ""), data.get("top", 6))
     try:
-        return jsonify({"setting": _parse_generated_json(result)})
+        return jsonify({"setting": _setting_defaults(_parse_generated_json(result))})
     except Exception:
         return jsonify({"setting": result})
 
