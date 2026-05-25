@@ -25,6 +25,11 @@ def handle_exception(e):
 def handle_500(e):
     return jsonify({"error": str(e)}), 500
 
+
+@app.route("/favicon.ico")
+def favicon():
+    return "", 204
+
 # ── Status ────────────────────────────────────────────────────────────────────
 
 @app.route("/health")

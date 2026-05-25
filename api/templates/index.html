@@ -713,6 +713,15 @@
       {% endif %}
     </div>
 
+
+    <div class="sidebar-title" style="margin-top:16px;border-top:1px solid var(--border);padding-top:12px">&#x1F50E; Search Lore</div>
+    <div style="display:flex;gap:6px;margin-bottom:6px">
+      <input type="text" id="lib-search-input" class="source-input" style="flex:1;min-width:0"
+             placeholder="Search sourcebooks..." onkeydown="if(event.key==='Enter')searchLore()">
+      <button class="upload-btn" onclick="searchLore()" title="Search" style="padding:6px 10px">&#x1F50D;</button>
+    </div>
+    <div id="lib-search-results" style="font-size:12px;max-height:200px;overflow-y:auto;color:var(--muted2)"></div>
+
     <div class="upload-area">
       <div class="upload-drop" id="drop-zone" onclick="document.getElementById('upload-file').click()">
         <span class="drop-icon">📜</span>
@@ -736,6 +745,7 @@
       <div class="tab active" data-tab="chat"    onclick="switchTab('chat')">💬 The Oracle</div>
       <div class="tab"        data-tab="npc"     onclick="switchTab('npc')">🧙 Conjure NPC</div>
       <div class="tab"        data-tab="monster" onclick="switchTab('monster')">🐉 Summon Creature</div>
+      <div class="tab"        data-tab="setting" onclick="switchTab('setting')">&#x1F3F0; Forge Setting</div>
       <div class="tab"        data-tab="map"     onclick="switchTab('map')">🗺 Forge Map</div>
     </div>
 
@@ -797,6 +807,26 @@
     </div>
 
     <!-- MAP -->
+
+    <!-- SETTING -->
+    <div class="tab-pane" id="pane-setting">
+      <div class="gen-pane">
+        <div class="gen-form">
+          <textarea class="gen-input" id="setting-input"
+            placeholder="Describe your setting (optional)&#x2026; e.g. 'A crumbling dwarven fortress reclaimed by a death cult'&#10;Leave blank for a random setting."></textarea>
+          <button class="gen-btn random" onclick="generateSetting(false)">&#x1F3B2; Random Setting</button>
+          <button class="gen-btn" onclick="generateSetting(true)">&#x1F3F0; Forge</button>
+        </div>
+        <div class="output-actions">
+          <button class="out-btn copy"  onclick="copyOutput('setting-output')">&#x1F4CB; Copy</button>
+          <button class="out-btn clear" onclick="clearOutput('setting-output', '&#x2714; Describe a setting above, or roll randomly.')">&#x1F9F9; Clear</button>
+        </div>
+        <div class="gen-output" id="setting-output">
+          <div class="gen-placeholder">&#x2714; Describe a setting above, or roll randomly. The Oracle will craft it from the sourcebooks.</div>
+        </div>
+      </div>
+    </div>
+
     <div class="tab-pane" id="pane-map">
       <div class="gen-pane">
         <div class="gen-form">
