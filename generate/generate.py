@@ -62,7 +62,18 @@ MAP_SCHEMA = """{
 }"""
 
 
-def call_llm(messages: list[dict], max_tokens: int = 1200) -> str:
+def _strip_json(text: str) -> str:
+    """Strip markdown code fences that LLMs often wrap JSON responses in."""
+    text = text.strip()
+    if text.startswith("```"):
+        # Remove opening fence (```json or ```)
+        text = text[text.index("\n") + 1:] if "\n" in text else text[3:]
+    if text.endswith("```"):
+        text = text[:text.rfind("```")]
+    return text.strip()
+
+
+
     r = requests.post(
         LLM_API_URL,
         headers=_llm_headers(),
@@ -179,7 +190,7 @@ def generate_npc(description: str, top_k: int = 6) -> str:
             f"--- Sourcebook passages (use ONLY these) ---\n{context}"
         )},
     ]
-    return call_llm(messages)
+    return _strip_json(call_llm(messages))
 
 
 def generate_monster(description: str, top_k: int = 4) -> str:
@@ -202,7 +213,7 @@ def generate_monster(description: str, top_k: int = 4) -> str:
             f"--- Sourcebook passages (use ONLY these) ---\n{context}"
         )},
     ]
-    return call_llm_streaming(messages)
+    return _strip_json(call_llm_streaming(messages))
 
 
 def generate_setting(description: str, top_k: int = 6) -> str:
@@ -223,7 +234,7 @@ def generate_setting(description: str, top_k: int = 6) -> str:
             f"--- Sourcebook passages (use ONLY these) ---\n{context}"
         )},
     ]
-    return call_llm(messages)
+    return _strip_json(call_llm(messages))
 
 
 def generate_map(description: str, top_k: int = 6) -> str:
@@ -251,7 +262,7 @@ def generate_map(description: str, top_k: int = 6) -> str:
         )},
         {"role": "user", "content": f"Generate a dungeon map: {description or 'a random D&D dungeon'}"},
     ]
-    return call_llm(messages, max_tokens=2500)
+    return _strip_json(call_llm(messages, max_tokens=2500))
 
 
 if __name__ == "__main__":

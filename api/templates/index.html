@@ -464,6 +464,17 @@
     box-shadow: inset 0 2px 12px rgba(0,0,0,0.3);
   }
 
+  /* Generator tabs: output expands to content, page scrolls */
+  .gen-tab { overflow-y: auto; }
+  .gen-tab .gen-pane { overflow: visible; height: auto; }
+  .gen-tab .gen-output,
+  .gen-tab .map-wrap {
+    flex: none;
+    height: auto;
+    min-height: 180px;
+    overflow: visible;
+  }
+
   .gen-placeholder {
     color: var(--muted2);
     font-style: italic;
@@ -777,7 +788,7 @@
 </div>
 
     <!-- NPC -->
-    <div class="tab-pane" id="pane-npc">
+    <div class="tab-pane gen-tab" id="pane-npc">
       <div class="gen-pane">
         <div class="gen-form">
           <textarea class="gen-input" id="npc-input"
@@ -796,7 +807,7 @@
     </div>
 
     <!-- MONSTER -->
-    <div class="tab-pane" id="pane-monster">
+    <div class="tab-pane gen-tab" id="pane-monster">
       <div class="gen-pane">
         <div class="gen-form">
           <textarea class="gen-input" id="monster-input"
@@ -817,7 +828,7 @@
     <!-- MAP -->
 
     <!-- SETTING -->
-    <div class="tab-pane" id="pane-setting">
+    <div class="tab-pane gen-tab" id="pane-setting">
       <div class="gen-pane">
         <div class="gen-form">
           <textarea class="gen-input" id="setting-input"
@@ -835,7 +846,7 @@
       </div>
     </div>
 
-    <div class="tab-pane" id="pane-map">
+    <div class="tab-pane gen-tab" id="pane-map">
       <div class="gen-pane">
         <div class="gen-form">
           <textarea class="gen-input" id="map-input"
