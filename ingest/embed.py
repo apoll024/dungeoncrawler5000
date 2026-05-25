@@ -32,11 +32,13 @@ def embed_chunks(chunks: list[dict]):
         col.upsert(ids=bi, embeddings=embeddings, documents=bt, metadatas=bm)
         print(f"  batch {i//BATCH + 1}: {len(bt)} chunks upserted")
 
-    # Write chunk text to SQLite immediately — AI needs this as primary reference
+    # Write source text and derived training records immediately — AI learns only from uploaded books
     try:
-        from ingest.db import store_chunks
+        from ingest.db import store_chunks, store_training_from_chunks
         store_chunks(chunks)
+        training_count = store_training_from_chunks(chunks)
         print(f"[embed] {len(chunks)} chunks written to SQLite")
+        print(f"[embed] {training_count} source-derived training records written to SQLite")
     except Exception as e:
         print(f"[embed] SQLite write warning: {e}")
 

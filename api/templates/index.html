@@ -705,6 +705,7 @@
     <span class="pill dim" id="pill-llm">⬤ Checking...</span>
     <span class="pill gold" id="pill-books">— Tomes</span>
     <span class="pill dim" id="pill-chunks">— Passages</span>
+    <span class="pill dim" id="pill-training">— Source Notes</span>
   </div>
 </header>
 
@@ -869,8 +870,9 @@
   <div class="sb-item"><div class="sb-dot" id="sb-llm"></div><span id="sb-llm-txt">LLM: checking</span></div>
   <div class="sb-item"><span id="sb-books">— tomes indexed</span></div>
   <div class="sb-item"><span id="sb-chunks">— passages</span></div>
+  <div class="sb-item"><span id="sb-training">— source-derived notes</span></div>
   <div style="flex:1"></div>
-  <div class="sb-item" style="color:var(--muted2);">DungeonCrawler 5000 · GPT-4o</div>
+  <div class="sb-item" style="color:var(--muted2);">DungeonCrawler 5000 · Gemini</div>
 </div>
 
 <div id="toast-container"></div>
@@ -895,10 +897,12 @@ async function loadStatus() {
     document.getElementById('pill-llm').className   = 'pill ' + (on ? 'green' : 'red');
     document.getElementById('pill-books').textContent  = d.books + ' Tome' + (d.books !== 1 ? 's' : '');
     document.getElementById('pill-chunks').textContent = (d.chunks || 0).toLocaleString() + ' Passages';
+    document.getElementById('pill-training').textContent = (d.training_items || 0).toLocaleString() + ' Source Notes';
     document.getElementById('sb-llm').className     = 'sb-dot ' + (on ? 'on' : 'off');
-    document.getElementById('sb-llm-txt').textContent = 'GPT-4o: ' + (on ? 'online' : 'offline');
+    document.getElementById('sb-llm-txt').textContent = 'Gemini: ' + (on ? 'online' : 'offline');
     document.getElementById('sb-books').textContent   = d.books + ' tome' + (d.books !== 1 ? 's' : '') + ' indexed';
     document.getElementById('sb-chunks').textContent  = (d.chunks || 0).toLocaleString() + ' passages';
+    document.getElementById('sb-training').textContent = (d.training_items || 0).toLocaleString() + ' source-derived notes';
   } catch(e) {}
 }
 

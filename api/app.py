@@ -9,7 +9,10 @@ from search.query import search
 from generate.generate import ask_stream, generate_npc, generate_monster, generate_setting, generate_map
 from ingest.extract import extract_pages, chunk_pages
 from ingest.embed import embed_chunks, CHROMA_PATH, COLLECTION
-from ingest.db import list_books, record_book, delete_book, sync_from_chroma, search_chunks, get_chunks
+from ingest.db import (
+    list_books, record_book, delete_book, sync_from_chroma, search_chunks, get_chunks,
+    search_training, rebuild_training_material, training_count,
+)
 
 app = Flask(__name__)
 
@@ -67,6 +70,7 @@ def api_status():
         "books":      len(books),
         "chunks":     vec_chunks,
         "sql_chunks": sql_chunks,
+        "training_items": training_count(),
     })
 
 
@@ -177,6 +181,12 @@ def api_search():
         return jsonify([{"source": r["source"], "page": r["page"],
                          "text": r["text"][:500], "score": None, "mode": "keyword"}
                         for r in rows])
+    if mode == "training":
+        rows = search_training(q, source=source, limit=limit)
+        return jsonify([{"source": r["source"], "page": r["page"], "kind": r["kind"],
+                         "title": r["title"], "text": r["content"][:500],
+                         "score": r.get("score"), "mode": "training"}
+                        for r in rows])
     results = search(q, top_k=limit, source=source)
     return jsonify([{"source": r["source"], "page": r["page"],
                      "text": r["text"][:500], "score": r.get("score"), "mode": "semantic"}
@@ -189,6 +199,12 @@ def api_chunks_by_source(source):
     limit  = min(int(request.args.get("limit", 50)), 200)
     offset = int(request.args.get("offset", 0))
     return jsonify(get_chunks(source.upper(), limit=limit, offset=offset))
+
+
+@app.route("/api/training/rebuild", methods=["POST"])
+def api_training_rebuild():
+    """Rebuild source-derived training material from stored sourcebook chunks."""
+    return jsonify({"status": "ok", "training_items": rebuild_training_material()})
 
 
 # ── Generators ────────────────────────────────────────────────────────────────

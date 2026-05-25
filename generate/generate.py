@@ -9,6 +9,7 @@ import requests
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 from search.query import search
+from ingest.db import search_training
 
 LLM_API_URL   = os.getenv("LLM_API_URL", "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions")
 MODEL         = os.getenv("LLM_MODEL", "gemini-3.5-flash")
@@ -72,8 +73,16 @@ def _strip_json(text: str) -> str:
         text = text[:text.rfind("```")]
     return text.strip()
 
+SOURCE_POLICY = (
+    "Use ONLY uploaded sourcebooks and source-derived training material stored in DC5000. "
+    "Source-derived training material means summaries, categories, and reference records built from uploaded books. "
+    "It is allowed. External web content, uncited general knowledge, and unsupported facts are not allowed. "
+    "You may synthesize, infer, and combine ideas across the source-derived database, but keep the answer grounded "
+    "in the provided sources and cite sources/pages when factual rules or lore are used."
+)
 
 
+def call_llm(messages: list[dict], max_tokens: int = 1200) -> str:
     r = requests.post(
         LLM_API_URL,
         headers=_llm_headers(),
@@ -115,26 +124,26 @@ def call_llm_streaming(messages: list[dict], max_tokens: int = 1200) -> str:
 
 
 def ask_stream(question: str, history: list[dict] = None, top_k: int = 8) -> Generator[str, None, None]:
-    """Yield response tokens. Answers ONLY from uploaded sourcebook passages."""
+    """Yield response tokens grounded in uploaded sourcebooks and derived training material."""
     chunks  = search(question, top_k)
-    if not chunks:
-        yield "No sourcebook passages found. Please upload your D&D PDFs via the Grimoire panel. The Oracle answers ONLY from your uploaded books."
+    training = search_training(question, limit=max(6, top_k))
+    if not chunks and not training:
+        yield "No sourcebook or source-derived training material found. Please upload D&D PDFs via the Grimoire panel or rebuild the source-derived training database."
         return
-    context = build_context(chunks)
+    context = build_context(chunks, training)
     messages = [
         {"role": "system", "content": (
             "You are a D&D rules reference assistant. "
-            "You MUST answer ONLY from the sourcebook passages provided. "
-            "Cite every rule as (Source, p.N). "
-            "You are STRICTLY PROHIBITED from using any general knowledge or training data. "
-            "If asked about something not covered in the passages, say so explicitly."
+            + SOURCE_POLICY + " "
+            "If the provided source-derived material supports a useful answer, answer normally instead of refusing. "
+            "If the source database truly has no support for the topic, say what is missing."
         )},
     ]
     if history:
         messages.extend(history)
     messages.append({
         "role": "user",
-        "content": f"{question}\n\n--- Sourcebook passages (answer ONLY from these) ---\n{context}",
+        "content": f"{question}\n\n--- DC5000 source database context ---\n{context}",
     })
 
     r = requests.post(
@@ -166,28 +175,38 @@ def ask(question: str, top_k: int = 8) -> str:
     return "".join(ask_stream(question, top_k=top_k))
 
 
-def build_context(chunks: list[dict]) -> str:
-    if not chunks:
-        return "[NO PASSAGES FOUND — no books have been uploaded to the Grimoire yet]"
-    return "\n\n".join(f"[{c['source']}, p.{c['page']}]:\n{c['text']}" for c in chunks)
+def build_context(chunks: list[dict], training: list[dict] = None) -> str:
+    parts = []
+    if training:
+        parts.append("--- Source-derived training material ---")
+        parts.extend(
+            f"[{t['source']}, p.{t['page']}, {t.get('kind','reference')}] {t.get('title') or 'Training item'}:\n{t['content']}"
+            for t in training
+        )
+    if chunks:
+        parts.append("--- Raw sourcebook passages ---")
+        parts.extend(f"[{c['source']}, p.{c['page']}]:\n{c['text']}" for c in chunks)
+    if not parts:
+        return "[NO SOURCE-DERIVED MATERIAL FOUND — upload books or rebuild training material]"
+    return "\n\n".join(parts)
 
 
 def generate_npc(description: str, top_k: int = 6) -> str:
     chunks  = search((description or "NPC character background personality traits") + " NPC traits ancestry", top_k)
-    if not chunks:
+    training = search_training((description or "NPC character background personality traits") + " NPC traits ancestry", limit=max(6, top_k))
+    if not chunks and not training:
         raise RuntimeError("No sourcebook passages found. Upload your D&D PDFs via the Grimoire panel first.")
-    context = build_context(chunks)
+    context = build_context(chunks, training)
     messages = [
         {"role": "system", "content": (
             "You are a D&D dungeon master assistant. "
-            "You MUST base your answer ONLY on the sourcebook passages provided below. "
-            "Do not use outside knowledge. Cite (Source, p.N) for every detail you draw from. "
-            "If no relevant passages were found, say so explicitly and refuse to fabricate. "
+            + SOURCE_POLICY + " "
+            "Create by synthesizing the source-derived training material and raw passages. "
             "Return ONLY valid JSON matching this schema:\n" + NPC_SCHEMA
         )},
         {"role": "user", "content": (
             f"Create a detailed NPC: {description or 'a random interesting NPC'}\n\n"
-            f"--- Sourcebook passages (use ONLY these) ---\n{context}"
+            f"--- DC5000 source database context ---\n{context}"
         )},
     ]
     return _strip_json(call_llm(messages))
@@ -196,21 +215,20 @@ def generate_npc(description: str, top_k: int = 6) -> str:
 def generate_monster(description: str, top_k: int = 4) -> str:
     query   = (description or "creature monster stat block abilities") + " monster CR actions abilities"
     chunks  = search(query, top_k)
-    if not chunks:
+    training = search_training(query, limit=max(6, top_k))
+    if not chunks and not training:
         raise RuntimeError("No sourcebook passages found. Upload your D&D PDFs via the Grimoire panel first.")
-    context = build_context(chunks)
+    context = build_context(chunks, training)
     messages = [
         {"role": "system", "content": (
             "You are a D&D dungeon master assistant and monster designer. "
-            "You MUST ground every value (HP, CR, ability scores, actions) in the sourcebook passages provided. "
-            "Do not invent stats from scratch — derive them from the passages. "
-            "Cite (Source, p.N) in the description/lore fields. "
-            "If no relevant passages were found, say so and refuse to fabricate. "
+            + SOURCE_POLICY + " "
+            "Derive stat blocks by synthesizing comparable source-derived creatures, rules, and passages. "
             "Return ONLY valid JSON matching this schema:\n" + MONSTER_SCHEMA
         )},
         {"role": "user", "content": (
             f"Generate a complete 5e monster stat block: {description or 'a random unique creature'}\n\n"
-            f"--- Sourcebook passages (use ONLY these) ---\n{context}"
+            f"--- DC5000 source database context ---\n{context}"
         )},
     ]
     return _strip_json(call_llm_streaming(messages))
@@ -218,20 +236,20 @@ def generate_monster(description: str, top_k: int = 4) -> str:
 
 def generate_setting(description: str, top_k: int = 6) -> str:
     chunks  = search((description or "dungeon location region setting lore") + " location factions history", top_k)
-    if not chunks:
+    training = search_training((description or "dungeon location region setting lore") + " location factions history", limit=max(6, top_k))
+    if not chunks and not training:
         raise RuntimeError("No sourcebook passages found. Upload your D&D PDFs via the Grimoire panel first.")
-    context = build_context(chunks)
+    context = build_context(chunks, training)
     messages = [
         {"role": "system", "content": (
             "You are a D&D dungeon master assistant. "
-            "You MUST base the setting ONLY on the sourcebook passages provided. "
-            "Cite (Source, p.N) in the premise and faction descriptions. "
-            "If no relevant passages were found, say so and refuse to fabricate. "
+            + SOURCE_POLICY + " "
+            "Build settings by synthesizing source-derived lore, factions, locations, and raw passages. "
             "Return ONLY valid JSON matching this schema:\n" + SETTING_SCHEMA
         )},
         {"role": "user", "content": (
             f"Create a detailed D&D setting: {description or 'a random interesting location'}\n\n"
-            f"--- Sourcebook passages (use ONLY these) ---\n{context}"
+            f"--- DC5000 source database context ---\n{context}"
         )},
     ]
     return _strip_json(call_llm(messages))
@@ -241,14 +259,15 @@ def generate_map(description: str, top_k: int = 6) -> str:
     """Generate a 2D dungeon/location map grounded in uploaded sourcebooks."""
     query  = (description or "dungeon map rooms corridors traps encounters") + " dungeon room corridor encounter layout"
     chunks = search(query, top_k)
-    if not chunks:
+    training = search_training(query, limit=max(6, top_k))
+    if not chunks and not training:
         raise RuntimeError("No sourcebook passages found. Upload your D&D PDFs via the Grimoire panel first.")
-    context = build_context(chunks)
+    context = build_context(chunks, training)
     messages = [
         {"role": "system", "content": (
             "You are a D&D dungeon cartographer. "
-            "Draw inspiration from the sourcebook passages provided. "
-            "Cite (Source, p.N) in room descriptions. "
+            + SOURCE_POLICY + " "
+            "Draw map structure from source-derived dungeon, encounter, trap, and location material. "
             "Generate a dungeon map as ONLY valid JSON matching this schema exactly — no markdown, no commentary:\n"
             + MAP_SCHEMA + "\n\n"
             "Rules:\n"
@@ -258,7 +277,7 @@ def generate_map(description: str, top_k: int = 6) -> str:
             "- Rooms should not overlap. Leave corridor space between them.\n"
             "- 'connections' lists the IDs of directly adjacent/connected rooms.\n"
             "- Corridor rooms: w or h = 2, length 4-10. Chambers: w and h ≥ 4.\n"
-            f"\nSourcebook passages:\n{context}"
+            f"\nDC5000 source database context:\n{context}"
         )},
         {"role": "user", "content": f"Generate a dungeon map: {description or 'a random D&D dungeon'}"},
     ]
