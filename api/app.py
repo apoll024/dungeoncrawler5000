@@ -6,7 +6,7 @@ from flask import Flask, Response, jsonify, render_template, request, stream_wit
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 from search.query import search
-from generate.generate import ask_stream, generate_npc, generate_monster, generate_setting
+from generate.generate import ask_stream, generate_npc, generate_monster, generate_setting, generate_map
 from ingest.extract import extract_pages, chunk_pages
 from ingest.embed import embed_chunks, CHROMA_PATH, COLLECTION
 from ingest.db import list_books, record_book, delete_book, sync_from_chroma, search_chunks, get_chunks
@@ -216,6 +216,24 @@ def api_setting():
         return jsonify({"setting": json.loads(result)})
     except Exception:
         return jsonify({"setting": result})
+
+
+@app.route("/api/generate/map", methods=["POST"])
+def api_map():
+    data   = request.get_json(silent=True) or {}
+    result = generate_map(data.get("description", ""), data.get("top", 4))
+    # Strip markdown code fences if LLM wraps output
+    clean  = result.strip()
+    if clean.startswith("```"):
+        parts = clean.split("```")
+        clean = parts[1] if len(parts) > 1 else clean
+        if clean.startswith("json"):
+            clean = clean[4:]
+        clean = clean.strip()
+    try:
+        return jsonify({"map": json.loads(clean)})
+    except Exception:
+        return jsonify({"map": result})
 
 
 # ── Legacy JSON routes ────────────────────────────────────────────────────────

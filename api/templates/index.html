@@ -385,6 +385,7 @@
   /* ── Generator panes ─────────────────────────────────────────────────────── */
   .gen-pane {
     flex: 1;
+    min-height: 0;
     display: flex;
     flex-direction: column;
     overflow: hidden;
@@ -446,6 +447,7 @@
 
   .gen-output {
     flex: 1;
+    min-height: 0;
     overflow-y: auto;
     background: var(--surface);
     border: 1px solid var(--border);
@@ -594,6 +596,84 @@
   .sb-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--muted2); }
   .sb-dot.on  { background: var(--green2); box-shadow: 0 0 5px var(--green2); }
   .sb-dot.off { background: var(--red2); }
+
+  /* ── Output action bar (Copy / Clear) ────────────────────────────────────── */
+  .output-actions {
+    display: flex;
+    gap: 6px;
+    justify-content: flex-end;
+    flex-shrink: 0;
+  }
+  .out-btn {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    color: var(--muted);
+    cursor: pointer;
+    font-size: 10px;
+    font-family: 'Courier New', monospace;
+    font-weight: 700;
+    letter-spacing: .5px;
+    padding: 4px 10px;
+    text-transform: uppercase;
+    transition: color .15s, border-color .15s;
+  }
+  .out-btn:hover { color: var(--gold2); border-color: var(--border2); }
+  .out-btn.copy:hover  { color: var(--green2);  border-color: rgba(90,170,96,.5); }
+  .out-btn.clear:hover { color: var(--red2);    border-color: rgba(192,64,64,.5); }
+
+  /* ── Map canvas area ─────────────────────────────────────────────────────── */
+  .map-wrap {
+    flex: 1;
+    min-height: 0;
+    overflow: auto;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px 16px;
+    box-shadow: inset 0 2px 12px rgba(0,0,0,0.3);
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  #map-canvas {
+    border: 1px solid var(--border2);
+    border-radius: 3px;
+    image-rendering: pixelated;
+    display: block;
+  }
+  .map-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    font-size: 10px;
+    font-family: 'Courier New', monospace;
+    color: var(--muted);
+  }
+  .legend-item { display: flex; align-items: center; gap: 5px; }
+  .legend-swatch { width: 12px; height: 12px; border-radius: 2px; border: 1px solid rgba(255,255,255,.15); flex-shrink: 0; }
+  .map-title { font-size: 15px; font-weight: 700; color: var(--gold2); }
+  .map-theme { font-size: 11px; color: var(--muted); font-style: italic; }
+  .map-room-list {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 11px;
+  }
+  .map-room-list th {
+    font-size: 9px; color: var(--gold); text-transform: uppercase;
+    letter-spacing: 1px; text-align: left; padding: 4px 8px;
+    border-bottom: 1px solid var(--border);
+  }
+  .map-room-list td {
+    padding: 5px 8px; color: var(--text);
+    border-bottom: 1px solid rgba(90,58,24,0.2); vertical-align: top;
+  }
+  .map-room-list tr:hover td { background: rgba(201,146,26,.04); }
+  .room-badge {
+    display: inline-block; border-radius: 3px; padding: 1px 6px;
+    font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px;
+    font-family: 'Courier New', monospace; border: 1px solid rgba(255,255,255,.1);
+  }
 </style>
 </head>
 <body>
@@ -603,7 +683,7 @@
   <span class="hdr-title">⚔ DungeonCrawler 5000</span>
   <div class="hdr-divider"></div>
   <div class="status-pills">
-    <span class="pill dim" id="pill-ollama">⬤ Checking...</span>
+    <span class="pill dim" id="pill-llm">⬤ Checking...</span>
     <span class="pill gold" id="pill-books">— Tomes</span>
     <span class="pill dim" id="pill-chunks">— Passages</span>
   </div>
@@ -656,6 +736,7 @@
       <div class="tab active" data-tab="chat"    onclick="switchTab('chat')">💬 The Oracle</div>
       <div class="tab"        data-tab="npc"     onclick="switchTab('npc')">🧙 Conjure NPC</div>
       <div class="tab"        data-tab="monster" onclick="switchTab('monster')">🐉 Summon Creature</div>
+      <div class="tab"        data-tab="map"     onclick="switchTab('map')">🗺 Forge Map</div>
     </div>
 
     <!-- CHAT -->
@@ -670,9 +751,12 @@
       <div class="chat-input-row">
         <textarea class="chat-input" id="chat-input" placeholder="Ask the Oracle..." rows="1"
           onkeydown="chatKeydown(event)" oninput="autoResize(this)"></textarea>
+        <button class="out-btn clear" onclick="clearChat()" title="Clear chat history" style="align-self:flex-end;padding:10px 12px">🗑</button>
         <button class="chat-send" id="chat-send" onclick="sendChat()">Consult Oracle ⟶</button>
       </div>
     </div>
+  </div>
+</div>
 
     <!-- NPC -->
     <div class="tab-pane" id="pane-npc">
@@ -682,6 +766,10 @@
             placeholder="Describe your NPC (optional)… e.g. 'A retired elven soldier haunted by a failed mission'&#10;Leave blank for a random NPC."></textarea>
           <button class="gen-btn random" onclick="generateNPC(false)">🎲 Random NPC</button>
           <button class="gen-btn" onclick="generateNPC(true)">🧙 Conjure</button>
+        </div>
+        <div class="output-actions">
+          <button class="out-btn copy"  onclick="copyOutput('npc-output')">📋 Copy</button>
+          <button class="out-btn clear" onclick="clearOutput('npc-output', '✦ Describe an NPC above, or roll randomly.')">🗑 Clear</button>
         </div>
         <div class="gen-output" id="npc-output">
           <div class="gen-placeholder">✦ Describe an NPC above, or roll randomly. The Oracle will craft them from the sourcebooks.</div>
@@ -698,21 +786,42 @@
           <button class="gen-btn random" onclick="generateMonster(false)">🎲 Random Creature</button>
           <button class="gen-btn" onclick="generateMonster(true)">🐉 Summon</button>
         </div>
+        <div class="output-actions">
+          <button class="out-btn copy"  onclick="copyOutput('monster-output')">📋 Copy</button>
+          <button class="out-btn clear" onclick="clearOutput('monster-output', '✦ Describe a creature above, or roll randomly.')">🗑 Clear</button>
+        </div>
         <div class="gen-output" id="monster-output">
           <div class="gen-placeholder">✦ Describe a creature above, or roll randomly. The Oracle will forge a full 5e stat block from the sourcebooks.</div>
         </div>
       </div>
     </div>
-  </div>
-</div>
+
+    <!-- MAP -->
+    <div class="tab-pane" id="pane-map">
+      <div class="gen-pane">
+        <div class="gen-form">
+          <textarea class="gen-input" id="map-input"
+            placeholder="Describe your dungeon (optional)… e.g. 'A three-level tomb with trapped corridors and a boss chamber'&#10;Leave blank for a random dungeon."></textarea>
+          <button class="gen-btn random" onclick="generateMap(false)">🎲 Random Map</button>
+          <button class="gen-btn" onclick="generateMap(true)">🗺 Forge</button>
+        </div>
+        <div class="output-actions">
+          <button class="out-btn copy"  onclick="copyMapText()">📋 Copy</button>
+          <button class="out-btn clear" onclick="clearMap()">🗑 Clear</button>
+        </div>
+        <div class="map-wrap" id="map-output">
+          <div class="gen-placeholder">✦ Describe a dungeon above, or roll randomly. The Oracle will forge a map from the sourcebooks.</div>
+        </div>
+      </div>
+    </div>
 
 <!-- ── STATUS BAR ───────────────────────────────────────────────────────────── -->
 <div class="status-bar">
-  <div class="sb-item"><div class="sb-dot" id="sb-ollama"></div><span id="sb-ollama-txt">Ollama: checking</span></div>
+  <div class="sb-item"><div class="sb-dot" id="sb-llm"></div><span id="sb-llm-txt">LLM: checking</span></div>
   <div class="sb-item"><span id="sb-books">— tomes indexed</span></div>
   <div class="sb-item"><span id="sb-chunks">— passages</span></div>
   <div style="flex:1"></div>
-  <div class="sb-item" style="color:var(--muted2);">DungeonCrawler 5000 · llama3.1:8b</div>
+  <div class="sb-item" style="color:var(--muted2);">DungeonCrawler 5000 · GPT-4o</div>
 </div>
 
 <div id="toast-container"></div>
@@ -732,13 +841,13 @@ function switchTab(name) {
 async function loadStatus() {
   try {
     const d = await fetch('/api/status').then(r => r.json());
-    const on = d.ollama === 'online';
-    document.getElementById('pill-ollama').textContent = on ? '⬤ Ollama Online' : '⬤ Ollama Offline';
-    document.getElementById('pill-ollama').className   = 'pill ' + (on ? 'green' : 'red');
+    const on = d.llm === 'online';
+    document.getElementById('pill-llm').textContent = on ? '⬤ LLM Online' : '⬤ LLM Offline';
+    document.getElementById('pill-llm').className   = 'pill ' + (on ? 'green' : 'red');
     document.getElementById('pill-books').textContent  = d.books + ' Tome' + (d.books !== 1 ? 's' : '');
     document.getElementById('pill-chunks').textContent = (d.chunks || 0).toLocaleString() + ' Passages';
-    document.getElementById('sb-ollama').className     = 'sb-dot ' + (on ? 'on' : 'off');
-    document.getElementById('sb-ollama-txt').textContent = 'Ollama: ' + (on ? 'online' : 'offline');
+    document.getElementById('sb-llm').className     = 'sb-dot ' + (on ? 'on' : 'off');
+    document.getElementById('sb-llm-txt').textContent = 'GPT-4o: ' + (on ? 'online' : 'offline');
     document.getElementById('sb-books').textContent   = d.books + ' tome' + (d.books !== 1 ? 's' : '') + ' indexed';
     document.getElementById('sb-chunks').textContent  = (d.chunks || 0).toLocaleString() + ' passages';
   } catch(e) {}
@@ -1064,6 +1173,222 @@ function toast(msg, ok=true) {
   t.textContent = msg;
   c.appendChild(t);
   setTimeout(() => t.remove(), 3500);
+}
+
+// ── Copy / Clear helpers ───────────────────────────────────────────────────
+function copyOutput(id) {
+  const el   = document.getElementById(id);
+  const text = (el.innerText || el.textContent || '').trim();
+  if (!text || el.querySelector('.gen-placeholder')) { toast('Nothing to copy yet', false); return; }
+  navigator.clipboard.writeText(text)
+    .then(()  => toast('Copied to clipboard!'))
+    .catch(()  => toast('Copy failed', false));
+}
+
+function clearOutput(id, placeholder) {
+  document.getElementById(id).innerHTML =
+    `<div class="gen-placeholder">${placeholder || '✦ Output cleared.'}</div>`;
+}
+
+function clearChat() {
+  if (!confirm('Clear chat history?')) return;
+  chatHistory = [];
+  document.getElementById('chat-messages').innerHTML = `
+    <div class="msg assistant">
+      <div class="msg-avatar">🎲</div>
+      <div class="msg-bubble">Chat cleared. Ask the Oracle anything from the Grimoire.</div>
+    </div>`;
+}
+
+// ── Map Generator ──────────────────────────────────────────────────────────
+let _lastMapData = null;
+
+const MAP_COLORS = {
+  entrance:  { fill: '#c9921a', text: '#1a0f00' },
+  corridor:  { fill: '#3a2a18', text: '#9a7a50' },
+  room:      { fill: '#26190c', text: '#e8d5b0' },
+  chamber:   { fill: '#31200f', text: '#e8d5b0' },
+  boss:      { fill: '#5a0a0a', text: '#f08080' },
+  treasure:  { fill: '#3a3000', text: '#f5d080' },
+  trap:      { fill: '#4a2a00', text: '#e8803a' },
+  stairs:    { fill: '#1a2a3a', text: '#80b8d0' },
+  secret:    { fill: '#2a1a3a', text: '#b080d0' },
+  default:   { fill: '#2a1f12', text: '#c8a060' },
+};
+
+function roomColor(type) {
+  return MAP_COLORS[type] || MAP_COLORS.default;
+}
+
+function renderMap(data) {
+  _lastMapData = data;
+  const GRID = 64, CELL = 8;
+  const W = GRID * CELL, H = GRID * CELL;
+
+  const wrap = document.getElementById('map-output');
+  wrap.innerHTML = '';
+
+  // Title
+  const title = document.createElement('div');
+  title.className = 'map-title';
+  title.textContent = data.name || 'Unnamed Dungeon';
+  wrap.appendChild(title);
+
+  if (data.theme) {
+    const theme = document.createElement('div');
+    theme.className = 'map-theme';
+    theme.textContent = data.theme;
+    wrap.appendChild(theme);
+  }
+
+  // Canvas
+  const canvas = document.createElement('canvas');
+  canvas.id     = 'map-canvas';
+  canvas.width  = W;
+  canvas.height = H;
+  canvas.style.maxWidth = '100%';
+  wrap.appendChild(canvas);
+
+  const ctx = canvas.getContext('2d');
+
+  // Background grid
+  ctx.fillStyle = '#0d0905';
+  ctx.fillRect(0, 0, W, H);
+  ctx.strokeStyle = 'rgba(90,58,24,0.25)';
+  ctx.lineWidth = 0.5;
+  for (let x = 0; x <= GRID; x++) {
+    ctx.beginPath(); ctx.moveTo(x*CELL, 0); ctx.lineTo(x*CELL, H); ctx.stroke();
+  }
+  for (let y = 0; y <= GRID; y++) {
+    ctx.beginPath(); ctx.moveTo(0, y*CELL); ctx.lineTo(W, y*CELL); ctx.stroke();
+  }
+
+  const rooms = Array.isArray(data.rooms) ? data.rooms : [];
+
+  // Draw connection lines first (beneath rooms)
+  ctx.strokeStyle = 'rgba(201,146,26,0.35)';
+  ctx.lineWidth = 1.5;
+  rooms.forEach(r => {
+    const cx = (r.x + r.w / 2) * CELL;
+    const cy = (r.y + r.h / 2) * CELL;
+    (r.connections || []).forEach(toId => {
+      const target = rooms.find(t => t.id === toId);
+      if (!target) return;
+      const tx = (target.x + target.w / 2) * CELL;
+      const ty = (target.y + target.h / 2) * CELL;
+      ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(tx, ty); ctx.stroke();
+    });
+  });
+
+  // Draw rooms
+  rooms.forEach(r => {
+    const x = Math.max(0, r.x) * CELL;
+    const y = Math.max(0, r.y) * CELL;
+    const w = Math.min(r.w, GRID - r.x) * CELL;
+    const h = Math.min(r.h, GRID - r.y) * CELL;
+    if (w <= 0 || h <= 0) return;
+
+    const col = roomColor(r.type);
+
+    // Room fill
+    ctx.fillStyle = col.fill;
+    ctx.fillRect(x+1, y+1, w-2, h-2);
+
+    // Room border
+    ctx.strokeStyle = col.text;
+    ctx.lineWidth = 1;
+    ctx.strokeRect(x+1, y+1, w-2, h-2);
+
+    // Room label (only if room big enough)
+    if (w >= 24 && h >= 14) {
+      ctx.fillStyle = col.text;
+      ctx.font = `bold ${Math.min(9, w/8)}px 'Courier New', monospace`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      const label = (r.name || '').length > 14 ? r.name.slice(0,13) + '…' : (r.name || '');
+      ctx.fillText(label, x + w/2, y + h/2);
+    }
+  });
+
+  // Legend
+  const usedTypes = [...new Set(rooms.map(r => r.type || 'room'))];
+  const legend = document.createElement('div');
+  legend.className = 'map-legend';
+  usedTypes.forEach(type => {
+    const col = roomColor(type);
+    legend.innerHTML += `
+      <div class="legend-item">
+        <div class="legend-swatch" style="background:${col.fill};border-color:${col.text}"></div>
+        <span>${type}</span>
+      </div>`;
+  });
+  wrap.appendChild(legend);
+
+  // Room list table
+  if (rooms.length) {
+    const table = document.createElement('table');
+    table.className = 'map-room-list';
+    table.innerHTML = `<thead><tr><th>#</th><th>Name</th><th>Type</th><th>Description</th></tr></thead>`;
+    const tbody = document.createElement('tbody');
+    rooms.forEach(r => {
+      const col = roomColor(r.type);
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td style="color:var(--muted);font-family:'Courier New',monospace">${r.id}</td>
+        <td style="font-weight:700;color:var(--gold3)">${escHtml(r.name||'')}</td>
+        <td><span class="room-badge" style="background:${col.fill};color:${col.text}">${escHtml(r.type||'room')}</span></td>
+        <td>${escHtml(r.description||'')}</td>`;
+      tbody.appendChild(tr);
+    });
+    table.appendChild(tbody);
+    wrap.appendChild(table);
+  }
+}
+
+async function generateMap(useInput) {
+  const desc = useInput ? document.getElementById('map-input').value.trim() : '';
+  const out  = document.getElementById('map-output');
+  const btns = document.querySelectorAll('#pane-map .gen-btn');
+  btns.forEach(b => b.disabled = true);
+  out.innerHTML = '<div class="loading-shimmer">✦ The Oracle is charting the dungeon depths…</div>';
+
+  try {
+    const d = await fetch('/api/generate/map', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({description: desc}),
+    }).then(r => r.json());
+
+    if (d.error) throw new Error(d.error);
+    const mapData = d.map;
+    if (typeof mapData === 'object' && mapData.rooms) {
+      renderMap(mapData);
+    } else {
+      out.innerHTML = `<pre style="white-space:pre-wrap;color:var(--text);font-size:12px;line-height:1.6">${escHtml(String(mapData))}</pre>`;
+    }
+  } catch(e) {
+    out.innerHTML = `<div class="gen-placeholder" style="color:var(--red2)">⚠ ${escHtml(e.message)}</div>`;
+  }
+  btns.forEach(b => b.disabled = false);
+}
+
+function clearMap() {
+  _lastMapData = null;
+  document.getElementById('map-output').innerHTML =
+    '<div class="gen-placeholder">✦ Describe a dungeon above, or roll randomly.</div>';
+}
+
+function copyMapText() {
+  if (!_lastMapData || !_lastMapData.rooms) { toast('No map to copy', false); return; }
+  const lines = [_lastMapData.name || 'Dungeon Map', _lastMapData.theme ? `Theme: ${_lastMapData.theme}` : '', ''];
+  _lastMapData.rooms.forEach(r => {
+    lines.push(`[${r.id}] ${r.name} (${r.type}) — ${r.description || ''}`);
+    if (r.connections && r.connections.length)
+      lines.push(`    Connects to: ${r.connections.join(', ')}`);
+  });
+  navigator.clipboard.writeText(lines.join('\n'))
+    .then(()  => toast('Map data copied!'))
+    .catch(()  => toast('Copy failed', false));
 }
 
 // ── Init ───────────────────────────────────────────────────────────────────

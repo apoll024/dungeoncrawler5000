@@ -45,6 +45,22 @@ SETTING_SCHEMA = """{
   "rumors": [str, str, str, str, str]
 }"""
 
+MAP_SCHEMA = """{
+  "name": str,
+  "theme": str,
+  "rooms": [
+    {
+      "id": int,
+      "name": str,
+      "type": "entrance|corridor|room|chamber|boss|treasure|trap|stairs|secret",
+      "x": int, "y": int,
+      "w": int, "h": int,
+      "description": str,
+      "connections": [int]
+    }
+  ]
+}"""
+
 
 def call_llm(messages: list[dict], max_tokens: int = 1200) -> str:
     r = requests.post(
@@ -201,6 +217,31 @@ def generate_setting(description: str, top_k: int = 6) -> str:
         )},
     ]
     return call_llm(messages)
+
+
+def generate_map(description: str, top_k: int = 4) -> str:
+    query   = (description or "dungeon map rooms corridors traps treasure") + " dungeon layout rooms passages"
+    chunks  = search(query, top_k)
+    context = build_context(chunks)
+    messages = [
+        {"role": "system", "content": (
+            "You are a D&D dungeon cartographer. "
+            "Draw inspiration from the sourcebook passages provided, but you may create "
+            "dungeon layouts consistent with D&D 5e rules even if passages are sparse. "
+            "Generate a dungeon map as ONLY valid JSON matching this schema exactly — no markdown, no commentary:\n"
+            + MAP_SCHEMA + "\n\n"
+            "Rules:\n"
+            "- Place all rooms on a 64×64 grid (each cell = 5 metres).\n"
+            "- Use 6-12 rooms. Include entrance, corridors, at least one boss chamber.\n"
+            "- Room x+w must be ≤ 64, room y+h must be ≤ 64. All values ≥ 0.\n"
+            "- Rooms should not overlap. Leave corridor space between them.\n"
+            "- 'connections' lists the IDs of directly adjacent/connected rooms.\n"
+            "- Corridor rooms: w or h = 2, length 4-10. Chambers: w and h ≥ 4.\n"
+            f"\nSourcebook passages:\n{context}"
+        )},
+        {"role": "user", "content": f"Generate a dungeon map: {description or 'a random D&D dungeon'}"},
+    ]
+    return call_llm(messages, max_tokens=2500)
 
 
 if __name__ == "__main__":
