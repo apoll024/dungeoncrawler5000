@@ -19,6 +19,41 @@ app = Flask(__name__)
 _ingest_lock = threading.Lock()
 
 
+def _parse_generated_json(raw: str):
+    clean = (raw or "").strip()
+    if clean.startswith("```"):
+        parts = clean.split("```")
+        clean = parts[1] if len(parts) > 1 else clean
+        if clean.startswith("json"):
+            clean = clean[4:]
+        clean = clean.strip()
+    return json.loads(clean)
+
+
+def _npc_defaults(npc):
+    if not isinstance(npc, dict):
+        return npc
+    npc.setdefault("name", "Source-Inspired NPC")
+    npc.setdefault("ancestry", "")
+    npc.setdefault("role", "")
+    npc.setdefault("appearance", "")
+    npc.setdefault("personality_traits", [])
+    npc.setdefault("ideal", "")
+    npc.setdefault("bond", "")
+    npc.setdefault("flaw", "")
+    npc.setdefault("backstory", "")
+    npc.setdefault("plot_hooks", [])
+    npc.setdefault("stat_block_suggestions", {"cr": "", "key_abilities": []})
+    if not isinstance(npc["personality_traits"], list):
+        npc["personality_traits"] = [str(npc["personality_traits"])]
+    if not isinstance(npc["plot_hooks"], list):
+        npc["plot_hooks"] = [str(npc["plot_hooks"])]
+    if not isinstance(npc["stat_block_suggestions"], dict):
+        npc["stat_block_suggestions"] = {"cr": "", "key_abilities": []}
+    npc["stat_block_suggestions"].setdefault("key_abilities", [])
+    return npc
+
+
 @app.errorhandler(Exception)
 def handle_exception(e):
     import traceback
@@ -214,7 +249,7 @@ def api_npc():
     data   = request.get_json(silent=True) or {}
     result = generate_npc(data.get("description", ""), data.get("top", 6))
     try:
-        return jsonify({"npc": json.loads(result)})
+        return jsonify({"npc": _npc_defaults(_parse_generated_json(result))})
     except Exception:
         return jsonify({"npc": result})
 
@@ -224,7 +259,7 @@ def api_monster():
     data   = request.get_json(silent=True) or {}
     result = generate_monster(data.get("description", ""), data.get("top", 8))
     try:
-        return jsonify({"monster": json.loads(result)})
+        return jsonify({"monster": _parse_generated_json(result)})
     except Exception:
         return jsonify({"monster": result})
 
@@ -234,7 +269,7 @@ def api_setting():
     data   = request.get_json(silent=True) or {}
     result = generate_setting(data.get("description", ""), data.get("top", 6))
     try:
-        return jsonify({"setting": json.loads(result)})
+        return jsonify({"setting": _parse_generated_json(result)})
     except Exception:
         return jsonify({"setting": result})
 
@@ -243,16 +278,8 @@ def api_setting():
 def api_map():
     data   = request.get_json(silent=True) or {}
     result = generate_map(data.get("description", ""), data.get("top", 4))
-    # Strip markdown code fences if LLM wraps output
-    clean  = result.strip()
-    if clean.startswith("```"):
-        parts = clean.split("```")
-        clean = parts[1] if len(parts) > 1 else clean
-        if clean.startswith("json"):
-            clean = clean[4:]
-        clean = clean.strip()
     try:
-        return jsonify({"map": json.loads(clean)})
+        return jsonify({"map": _parse_generated_json(result)})
     except Exception:
         return jsonify({"map": result})
 

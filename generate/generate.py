@@ -9,7 +9,7 @@ import requests
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 from search.query import search
-from ingest.db import search_training
+from ingest.db import search_chunks, search_training
 
 LLM_API_URL   = os.getenv("LLM_API_URL", "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions")
 MODEL         = os.getenv("LLM_MODEL", "gemini-3.5-flash")
@@ -77,8 +77,9 @@ SOURCE_POLICY = (
     "Use ONLY uploaded sourcebooks and source-derived training material stored in DC5000. "
     "Source-derived training material means summaries, categories, and reference records built from uploaded books. "
     "It is allowed. External web content, uncited general knowledge, and unsupported facts are not allowed. "
-    "You may synthesize, infer, and combine ideas across the source-derived database, but keep the answer grounded "
-    "in the provided sources and cite sources/pages when factual rules or lore are used."
+    "You may synthesize, adapt, and combine ideas across the source-derived database, including creating new NPCs, "
+    "monsters, settings, and maps inspired by the uploaded books. Do not refuse just because the exact requested "
+    "thing is absent; use the closest relevant source material and label invented connective tissue as source-inspired."
 )
 
 
@@ -175,6 +176,27 @@ def ask(question: str, top_k: int = 8) -> str:
     return "".join(ask_stream(question, top_k=top_k))
 
 
+def retrieve_context(query: str, top_k: int, fallback_query: str) -> tuple[list[dict], list[dict]]:
+    chunks = search(query, top_k) or []
+    training = search_training(query, limit=max(8, top_k)) or []
+    if chunks or training:
+        return chunks, training
+
+    fallback = f"{fallback_query} dungeon monster character magic combat rules lore"
+    chunks = search(fallback, top_k) or []
+    training = search_training(fallback, limit=max(8, top_k)) or []
+    if chunks or training:
+        return chunks, training
+
+    chunks = search_chunks(fallback, limit=max(8, top_k)) or []
+    if not chunks:
+        for term in ("dungeon", "monster", "character", "spell", "combat", "magic", "room"):
+            chunks = search_chunks(term, limit=max(8, top_k)) or []
+            if chunks:
+                break
+    return chunks, []
+
+
 def build_context(chunks: list[dict], training: list[dict] = None) -> str:
     parts = []
     if training:
@@ -192,8 +214,8 @@ def build_context(chunks: list[dict], training: list[dict] = None) -> str:
 
 
 def generate_npc(description: str, top_k: int = 6) -> str:
-    chunks  = search((description or "NPC character background personality traits") + " NPC traits ancestry", top_k)
-    training = search_training((description or "NPC character background personality traits") + " NPC traits ancestry", limit=max(6, top_k))
+    query = (description or "NPC character background personality traits") + " NPC traits ancestry"
+    chunks, training = retrieve_context(query, top_k, "NPC character background personality traits ancestry")
     if not chunks and not training:
         raise RuntimeError("No sourcebook passages found. Upload your D&D PDFs via the Grimoire panel first.")
     context = build_context(chunks, training)
@@ -202,7 +224,7 @@ def generate_npc(description: str, top_k: int = 6) -> str:
             "You are a D&D dungeon master assistant. "
             + SOURCE_POLICY + " "
             "Create by synthesizing the source-derived training material and raw passages. "
-            "Return ONLY valid JSON matching this schema:\n" + NPC_SCHEMA
+            "Return ONLY valid JSON matching this schema. Include every field, using an empty list only when needed:\n" + NPC_SCHEMA
         )},
         {"role": "user", "content": (
             f"Create a detailed NPC: {description or 'a random interesting NPC'}\n\n"
@@ -214,8 +236,7 @@ def generate_npc(description: str, top_k: int = 6) -> str:
 
 def generate_monster(description: str, top_k: int = 4) -> str:
     query   = (description or "creature monster stat block abilities") + " monster CR actions abilities"
-    chunks  = search(query, top_k)
-    training = search_training(query, limit=max(6, top_k))
+    chunks, training = retrieve_context(query, top_k, "creature monster stat block abilities CR actions")
     if not chunks and not training:
         raise RuntimeError("No sourcebook passages found. Upload your D&D PDFs via the Grimoire panel first.")
     context = build_context(chunks, training)
@@ -224,7 +245,7 @@ def generate_monster(description: str, top_k: int = 4) -> str:
             "You are a D&D dungeon master assistant and monster designer. "
             + SOURCE_POLICY + " "
             "Derive stat blocks by synthesizing comparable source-derived creatures, rules, and passages. "
-            "Return ONLY valid JSON matching this schema:\n" + MONSTER_SCHEMA
+            "Return ONLY valid JSON matching this schema. Include every field, using empty lists only when needed:\n" + MONSTER_SCHEMA
         )},
         {"role": "user", "content": (
             f"Generate a complete 5e monster stat block: {description or 'a random unique creature'}\n\n"
@@ -235,8 +256,8 @@ def generate_monster(description: str, top_k: int = 4) -> str:
 
 
 def generate_setting(description: str, top_k: int = 6) -> str:
-    chunks  = search((description or "dungeon location region setting lore") + " location factions history", top_k)
-    training = search_training((description or "dungeon location region setting lore") + " location factions history", limit=max(6, top_k))
+    query = (description or "dungeon location region setting lore") + " location factions history"
+    chunks, training = retrieve_context(query, top_k, "dungeon location region setting lore factions history")
     if not chunks and not training:
         raise RuntimeError("No sourcebook passages found. Upload your D&D PDFs via the Grimoire panel first.")
     context = build_context(chunks, training)
@@ -245,7 +266,7 @@ def generate_setting(description: str, top_k: int = 6) -> str:
             "You are a D&D dungeon master assistant. "
             + SOURCE_POLICY + " "
             "Build settings by synthesizing source-derived lore, factions, locations, and raw passages. "
-            "Return ONLY valid JSON matching this schema:\n" + SETTING_SCHEMA
+            "Return ONLY valid JSON matching this schema. Include every field, using empty lists only when needed:\n" + SETTING_SCHEMA
         )},
         {"role": "user", "content": (
             f"Create a detailed D&D setting: {description or 'a random interesting location'}\n\n"
@@ -258,8 +279,7 @@ def generate_setting(description: str, top_k: int = 6) -> str:
 def generate_map(description: str, top_k: int = 6) -> str:
     """Generate a 2D dungeon/location map grounded in uploaded sourcebooks."""
     query  = (description or "dungeon map rooms corridors traps encounters") + " dungeon room corridor encounter layout"
-    chunks = search(query, top_k)
-    training = search_training(query, limit=max(6, top_k))
+    chunks, training = retrieve_context(query, top_k, "dungeon map rooms corridors traps encounters layout")
     if not chunks and not training:
         raise RuntimeError("No sourcebook passages found. Upload your D&D PDFs via the Grimoire panel first.")
     context = build_context(chunks, training)

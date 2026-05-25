@@ -1107,7 +1107,9 @@ async function generateNPC(useInput) {
       body: JSON.stringify({description: desc}),
     }).then(r => r.json());
 
-    const npc = typeof d.npc === 'string' ? d.npc : d.npc;
+    if (d.error) throw new Error(d.error);
+    const npc = d.npc;
+    if (!npc) throw new Error('Generator returned no NPC content.');
     if (typeof npc === 'string') {
       out.innerHTML = `<div class="npc-card"><div class="card-header"><div class="card-name">NPC</div></div><pre style="white-space:pre-wrap;color:var(--text);font-family:Georgia,serif;line-height:1.6">${escHtml(npc)}</pre></div>`;
     } else {
@@ -1120,6 +1122,7 @@ async function generateNPC(useInput) {
 }
 
 function renderNPC(n) {
+  n = n || {};
   const traits = (n.personality_traits || []).map(t => `<span class="card-tag">${escHtml(t)}</span>`).join('');
   const hooks  = (n.plot_hooks || []).map((h,i) => `<div style="margin-bottom:4px"><span style="color:var(--gold);font-weight:700">${i+1}.</span> ${escHtml(h)}</div>`).join('');
   const sb     = n.stat_block_suggestions || {};
@@ -1160,6 +1163,8 @@ async function generateMonster(useInput) {
     }).then(r => r.json());
 
     const m = d.monster;
+    if (d.error) throw new Error(d.error);
+    if (!m) throw new Error('Generator returned no monster content.');
     if (typeof m === 'string') {
       out.innerHTML = `<div class="monster-card"><pre style="white-space:pre-wrap;color:var(--text);font-family:Georgia,serif;line-height:1.6">${escHtml(m)}</pre></div>`;
     } else {
@@ -1172,6 +1177,7 @@ async function generateMonster(useInput) {
 }
 
 function renderMonster(m) {
+  m = m || {};
   const abs = m.ability_scores || {};
   const modStr = v => { const mod = Math.floor((parseInt(v)||10 - 10)/2); return (mod >= 0 ? '+' : '') + mod; };
 
@@ -1215,6 +1221,56 @@ function renderMonster(m) {
     ${m.lore ? `<div class="stat-divider"></div><div class="card-section"><div class="card-section-title">Lore</div><p>${escHtml(m.lore)}</p></div>` : ''}
     ${m.habitat ? `<div class="card-section"><p><strong style="color:var(--gold)">Habitat:</strong> ${escHtml(m.habitat)}</p></div>` : ''}
     ${m.description ? `<div class="card-section"><div class="card-section-title">Description</div><p>${escHtml(m.description)}</p></div>` : ''}
+  </div>`;
+}
+
+// ── Setting Generator ──────────────────────────────────────────────────────
+async function generateSetting(useInput) {
+  const desc = useInput ? document.getElementById('setting-input').value.trim() : '';
+  const out  = document.getElementById('setting-output');
+  const btns = document.querySelectorAll('#pane-setting .gen-btn');
+  btns.forEach(b => b.disabled = true);
+  out.innerHTML = '<div class="loading-shimmer">✦ The Oracle is forging a setting from the source lore…</div>';
+
+  try {
+    const d = await fetch('/api/generate/setting', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({description: desc}),
+    }).then(r => r.json());
+
+    if (d.error) throw new Error(d.error);
+    const setting = d.setting;
+    if (!setting) throw new Error('Generator returned no setting content.');
+    if (typeof setting === 'string') {
+      out.innerHTML = `<div class="npc-card"><pre style="white-space:pre-wrap;color:var(--text);font-family:Georgia,serif;line-height:1.6">${escHtml(setting)}</pre></div>`;
+    } else {
+      out.innerHTML = renderSetting(setting);
+    }
+  } catch(e) {
+    out.innerHTML = `<div class="gen-placeholder" style="color:var(--red2)">⚠ ${escHtml(e.message)}</div>`;
+  }
+  btns.forEach(b => b.disabled = false);
+}
+
+function renderSetting(s) {
+  s = s || {};
+  const renderList = arr => (Array.isArray(arr) ? arr : []).map((item, i) =>
+    `<div style="margin-bottom:4px"><span style="color:var(--gold);font-weight:700">${i+1}.</span> ${escHtml(item)}</div>`
+  ).join('');
+  const factions = (Array.isArray(s.factions) ? s.factions : []).map(f =>
+    `<div class="action-item"><span class="action-name">${escHtml(f.name || 'Faction')}.</span> <span class="action-desc">${escHtml(f.description || '')}</span></div>`
+  ).join('');
+  return `<div class="npc-card">
+    <div class="card-header">
+      <div class="card-name">${escHtml(s.name || 'Source-Inspired Setting')}</div>
+      <div class="card-subtitle">${escHtml(s.region_type || '')}</div>
+    </div>
+    ${s.premise ? `<div class="card-section"><div class="card-section-title">Premise</div><p>${escHtml(s.premise)}</p></div>` : ''}
+    ${factions ? `<div class="card-section"><div class="card-section-title">Factions</div>${factions}</div>` : ''}
+    ${s.key_conflicts ? `<div class="card-section"><div class="card-section-title">Key Conflicts</div>${renderList(s.key_conflicts)}</div>` : ''}
+    ${s.adventure_seeds ? `<div class="card-section"><div class="card-section-title">Adventure Seeds</div>${renderList(s.adventure_seeds)}</div>` : ''}
+    ${s.rumors ? `<div class="card-section"><div class="card-section-title">Rumors</div>${renderList(s.rumors)}</div>` : ''}
   </div>`;
 }
 
