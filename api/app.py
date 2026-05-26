@@ -166,7 +166,7 @@ def api_status():
     except Exception:
         sql_chunks = 0
 
-    token   = os.getenv("GEMINI_API_KEY", "")
+    token   = os.getenv("GITHUB_TOKEN", "") or os.getenv("GEMINI_API_KEY", "")
     llm_url = os.getenv("LLM_API_URL", "")
     llm_ok  = bool(token and llm_url)
 
