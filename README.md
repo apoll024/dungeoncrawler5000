@@ -5,7 +5,8 @@ A personal D&D reference assistant — search and generate content grounded in y
 ## Features
 - PDF ingestion pipeline (your personally owned books)
 - Semantic search with exact passage retrieval + citations
-- RAG-powered generation: NPCs, settings, rules lookups
+- RAG-powered generation: NPCs, monsters, settings, maps, rules lookups
+- Streaming chat assistant grounded in uploaded sourcebooks
 - Flask API + Docker deployment on your LAN
 
 ## Quick start
@@ -27,17 +28,21 @@ python generate/generate.py setting "Coastal town plagued by a drowned god"
 ### 3. Run as API (Docker)
 ```bash
 docker compose up -d
-curl -X POST http://192.168.1.55:5001/ask \
+curl -X POST http://localhost:5001/ask \
   -H 'Content-Type: application/json' \
   -d '{"question": "What are the rules for grappling?"}'
 ```
 
 ## Environment variables
-| Variable | Description |
-|---|---|
-| `GEMINI_API_KEY` | Google Gemini API key |
-| `LLM_API_URL` | OpenAI-compatible Gemini endpoint (default: `https://generativelanguage.googleapis.com/v1beta/openai/chat/completions`) |
-| `LLM_MODEL` | Model override (default: `gemini-3.5-flash`) |
+| Variable | Description | Default |
+|---|---|---|
+| `GITHUB_TOKEN` | GitHub OAuth/PAT token for GitHub Models API (preferred) | — |
+| `GEMINI_API_KEY` | Google Gemini API key (fallback if no GITHUB_TOKEN) | — |
+| `LLM_API_URL` | OpenAI-compatible LLM endpoint | `https://models.inference.ai.azure.com/chat/completions` |
+| `LLM_MODEL` | Model name | `gpt-4o` |
+| `LLM_TIMEOUT` | Request timeout in seconds | `60` |
+
+> **Note:** The VM deployment uses a `docker-compose.override.yml` that sets the LLM provider and token. The override file is not committed to the repo as it contains credentials.
 
 ## Book IDs (--source)
 Use short identifiers: `PHB`, `DMG`, `MM`, `TCE`, `XGE`, `VGM`, `MPMM`, etc.
