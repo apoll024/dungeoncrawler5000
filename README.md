@@ -36,8 +36,7 @@ curl -X POST http://localhost:5001/ask \
 ## Environment variables
 | Variable | Description | Default |
 |---|---|---|
-| `GITHUB_TOKEN` | GitHub OAuth/PAT token for GitHub Models API (preferred) | — |
-| `GEMINI_API_KEY` | Google Gemini API key (fallback if no GITHUB_TOKEN) | — |
+| `GITHUB_TOKEN` | GitHub Models PAT | — |
 | `LLM_API_URL` | OpenAI-compatible LLM endpoint | `https://models.inference.ai.azure.com/chat/completions` |
 | `LLM_MODEL` | Model name | `gpt-4o` |
 | `LLM_TIMEOUT` | Request timeout in seconds | `60` |

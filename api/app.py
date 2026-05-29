@@ -115,7 +115,7 @@ def _fallback_map(description: str, raw: str):
     ]
     return {
         "name": name,
-        "theme": f"{theme}. Fallback layout used after Gemini returned malformed map text.",
+        "theme": f"{theme}. Fallback layout used after LLM returned malformed map text.",
         "rooms": [
             {"id": rid, "name": rname, "type": rtype, "x": x, "y": y, "w": w, "h": h,
              "description": desc, "connections": links}
@@ -166,7 +166,7 @@ def api_status():
     except Exception:
         sql_chunks = 0
 
-    token   = os.getenv("GITHUB_TOKEN", "") or os.getenv("GEMINI_API_KEY", "")
+    token   = os.getenv("GITHUB_TOKEN", "")
     llm_url = os.getenv("LLM_API_URL", "")
     llm_ok  = bool(token and llm_url)
 
