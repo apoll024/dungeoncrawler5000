@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python:*)",
+      "Bash(pip:*)",
+      "Bash(docker:*)",
+      "Bash(docker compose:*)",
+      "Bash(git:*)",
+      "Bash(python ingest/extract.py:*)",
+      "Bash(python ingest/embed.py:*)",
+      "Bash(python search/query.py:*)",
+      "Bash(python generate/generate.py:*)",
+      "Bash(python api/app.py:*)"
+    ],
+    "deny": []
+  }
+}
