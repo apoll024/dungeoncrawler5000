@@ -1,0 +1,120 @@
+@use '../styles/tokens' as t;
+
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  font-size: 13px;
+}
+
+.header {
+  border-bottom: 2px solid t.$border-strong;
+  padding-bottom: 8px;
+}
+
+.name {
+  font-size: 20px;
+  font-weight: 700;
+  color: t.$gold;
+  text-shadow: 0 0 12px rgba(t.$gold-dim, 0.4);
+}
+
+.subtitle {
+  font-size: 11px;
+  color: t.$text-muted;
+  font-style: italic;
+  margin-top: 2px;
+}
+
+.section {
+  margin-top: 2px;
+
+  p { line-height: 1.65; color: t.$text; }
+}
+
+.sectionTitle {
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  color: t.$gold-dim;
+  margin-bottom: 4px;
+}
+
+.label { color: t.$gold-dim; font-weight: 700; }
+
+.tag {
+  display: inline-block;
+  background: rgba(t.$gold-dim, 0.1);
+  border: 1px solid rgba(t.$gold-dim, 0.25);
+  border-radius: 4px;
+  padding: 2px 7px;
+  font-size: 11px;
+  color: t.$gold;
+  margin: 2px 2px 2px 0;
+}
+
+.hook {
+  margin-bottom: 4px;
+  line-height: 1.55;
+}
+
+.action {
+  margin-bottom: 6px;
+  line-height: 1.55;
+}
+
+.actionName {
+  font-weight: 700;
+  color: t.$gold-bright;
+}
+
+.crBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: rgba(t.$gold-dim, 0.12);
+  border: 1px solid rgba(t.$gold-dim, 0.3);
+  border-radius: 6px;
+  padding: 3px 10px;
+  font-size: 11px;
+  font-weight: 700;
+  color: t.$gold;
+}
+
+.divider {
+  height: 1px;
+  background: linear-gradient(90deg, transparent, t.$border-strong, transparent);
+  margin: 2px 0;
+}
+
+.abilityRow {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 6px;
+  text-align: center;
+}
+
+.abilityCell {
+  background: t.$bg-surface-md;
+  border: 1px solid t.$border;
+  border-radius: 6px;
+  padding: 6px 4px;
+}
+
+.abilLabel {
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: t.$gold-dim;
+  letter-spacing: 1px;
+}
+
+.abilVal {
+  font-size: 15px;
+  font-weight: 900;
+  color: t.$text;
+  margin: 2px 0;
+}
+
+.abilMod { font-size: 9px; color: t.$text-muted; }

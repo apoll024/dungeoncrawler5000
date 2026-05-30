@@ -4,3 +4,6 @@ data/
 __pycache__/
 .env
 chunks/
+api/static/
+frontend/node_modules/
+frontend/dist/

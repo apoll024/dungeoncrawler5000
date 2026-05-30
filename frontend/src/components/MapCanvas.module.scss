@@ -1,0 +1,75 @@
+@use '../styles/tokens' as t;
+
+.title { font-size: 15px; font-weight: 700; color: t.$gold; }
+.theme { font-size: 11px; color: t.$text-muted; font-style: italic; }
+
+.canvas {
+  border: 1px solid t.$border-strong;
+  border-radius: 3px;
+  image-rendering: pixelated;
+  display: block;
+  max-width: 100%;
+}
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  font-size: 10px;
+  font-family: 'Courier New', monospace;
+  color: t.$text-muted;
+}
+
+.legendItem {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.swatch {
+  width: 12px;
+  height: 12px;
+  border-radius: 2px;
+  border: 1px solid;
+  flex-shrink: 0;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 11px;
+
+  th {
+    font-size: 9px;
+    color: t.$gold-dim;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    text-align: left;
+    padding: 4px 8px;
+    border-bottom: 1px solid t.$border;
+  }
+
+  td {
+    padding: 5px 8px;
+    color: t.$text;
+    border-bottom: 1px solid rgba(t.$border, 0.2);
+    vertical-align: top;
+  }
+
+  tr:hover td { background: rgba(t.$gold-dim, 0.04); }
+}
+
+.idCell   { color: t.$text-muted; font-family: 'Courier New', monospace; }
+.nameCell { font-weight: 700; color: t.$gold-bright; }
+
+.badge {
+  display: inline-block;
+  border-radius: 3px;
+  padding: 1px 6px;
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-family: 'Courier New', monospace;
+  border: 1px solid rgba(#fff, 0.1);
+}

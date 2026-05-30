@@ -1,0 +1,67 @@
+@use '../styles/tokens' as t;
+@use '../styles/mixins' as m;
+
+.header {
+  background: linear-gradient(180deg, #0d0804 0%, t.$bg-raised 100%);
+  border-bottom: 2px solid t.$border;
+  box-shadow: 0 2px 20px rgba(t.$gold-dim, 0.12);
+  padding: 0 18px;
+  height: 54px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+}
+
+.title {
+  font-size: 20px;
+  font-weight: bold;
+  color: t.$gold;
+  letter-spacing: 1px;
+  white-space: nowrap;
+  @include m.gold-glow(0.7);
+}
+
+.spacer { flex: 1; }
+
+.pills {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.pill {
+  font-family: 'Courier New', monospace;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 3px 10px;
+  border-radius: 20px;
+  border: 1px solid;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  white-space: nowrap;
+
+  &.green {
+    background: rgba(t.$success-bg, 0.25);
+    border-color: rgba(t.$success, 0.4);
+    color: t.$success;
+  }
+
+  &.red {
+    background: rgba(t.$danger-bg, 0.25);
+    border-color: rgba(t.$danger, 0.4);
+    color: t.$danger;
+  }
+
+  &.gold {
+    background: rgba(t.$gold-dim, 0.12);
+    border-color: rgba(t.$gold-dim, 0.4);
+    color: t.$gold;
+  }
+
+  &.dim {
+    background: rgba(t.$border, 0.15);
+    border-color: t.$border;
+    color: t.$text-muted;
+  }
+}

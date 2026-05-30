@@ -1,0 +1,61 @@
+@use './styles/tokens' as t;
+
+// ── CSS custom properties (runtime cascade) ───────────────────────────────────
+:root {
+  --bg:        #{t.$bg-base};
+  --bg2:       #{t.$bg-raised};
+  --surface:   #{t.$bg-surface};
+  --surface2:  #{t.$bg-surface-md};
+  --surface3:  #{t.$bg-surface-hi};
+  --border:    #{t.$border};
+  --border2:   #{t.$border-strong};
+  --text:      #{t.$text};
+  --muted:     #{t.$text-muted};
+  --muted2:    #{t.$text-faint};
+  --gold:      #{t.$gold-dim};
+  --gold2:     #{t.$gold};
+  --gold3:     #{t.$gold-bright};
+  --amber:     #{t.$amber};
+  --red2:      #{t.$danger};
+  --green2:    #{t.$success};
+  --parchment: #{t.$parchment};
+}
+
+// ── Reset ─────────────────────────────────────────────────────────────────────
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body, #root {
+  height: 100%;
+  overflow: hidden;
+  background: t.$bg-base;
+  color: t.$text;
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: 14px;
+
+  &::-webkit-scrollbar       { width: 6px; height: 6px; }
+  &::-webkit-scrollbar-track { background: t.$bg-raised; }
+  &::-webkit-scrollbar-thumb { background: t.$border-strong; border-radius: 3px; }
+}
+
+button  { cursor: pointer; font-family: inherit; }
+input, textarea { font-family: inherit; }
+
+textarea {
+  resize: none;
+  background: t.$bg-surface;
+  border: 1px solid t.$border-strong;
+  border-radius: 8px;
+  color: t.$text;
+  font-size: 13px;
+  padding: 9px 12px;
+  line-height: 1.5;
+  transition: border-color 0.15s;
+  width: 100%;
+
+  &:focus       { outline: none; border-color: t.$gold-dim; }
+  &::placeholder { color: t.$text-faint; font-style: italic; }
+}

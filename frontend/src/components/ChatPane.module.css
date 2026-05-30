@@ -1,0 +1,122 @@
+.pane {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.messages {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.msg {
+  display: flex;
+  gap: 10px;
+  max-width: 860px;
+  width: 100%;
+}
+.user      { align-self: flex-end; flex-direction: row-reverse; }
+.assistant { align-self: flex-start; }
+
+.avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  flex-shrink: 0;
+  border: 1px solid var(--border);
+}
+.user .avatar      { background: rgba(201,146,26,.15); }
+.assistant .avatar { background: rgba(90,58,24,.3); }
+
+.bubble {
+  padding: 10px 14px;
+  border-radius: 10px;
+  font-size: 13px;
+  line-height: 1.65;
+  max-width: calc(100% - 46px);
+  word-wrap: break-word;
+}
+.user .bubble {
+  background: rgba(201,146,26,.12);
+  border: 1px solid rgba(201,146,26,.25);
+  color: var(--parchment);
+  border-top-right-radius: 3px;
+}
+.assistant .bubble {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-top-left-radius: 3px;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.3);
+}
+
+.cursor {
+  width: 2px;
+  height: 14px;
+  background: var(--gold);
+  animation: blink 1s infinite;
+  align-self: flex-start;
+  margin-left: 46px;
+}
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
+
+.hint {
+  font-size: 10px;
+  color: var(--muted2);
+  padding: 0 16px 6px;
+  font-style: italic;
+  flex-shrink: 0;
+}
+
+.inputRow {
+  padding: 12px 16px;
+  border-top: 1px solid var(--border);
+  background: var(--bg2);
+  display: flex;
+  gap: 8px;
+  align-items: flex-end;
+  flex-shrink: 0;
+}
+
+.input {
+  flex: 1;
+  min-height: 42px;
+  max-height: 120px;
+}
+
+.clearBtn {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--muted);
+  font-size: 13px;
+  padding: 10px 12px;
+  transition: color .15s;
+  align-self: flex-end;
+}
+.clearBtn:hover { color: var(--red2); }
+
+.sendBtn {
+  background: linear-gradient(135deg, #7a5228 0%, var(--gold) 100%);
+  border: 1px solid var(--border2);
+  border-radius: 8px;
+  color: #1a0f00;
+  font-size: 13px;
+  font-weight: 900;
+  padding: 10px 16px;
+  white-space: nowrap;
+  transition: filter .15s;
+  align-self: flex-end;
+}
+.sendBtn:hover:not(:disabled) { filter: brightness(1.2); }
+.sendBtn:disabled { filter: brightness(0.5); cursor: not-allowed; }

@@ -1,0 +1,90 @@
+@use 'tokens' as t;
+
+// Gold glow text-shadow
+@mixin gold-glow($intensity: 0.7) {
+  text-shadow:
+    0 0 18px rgba(t.$gold-dim, $intensity),
+    0 0 40px rgba(t.$gold-dim, 0.3);
+}
+
+// Subtle gold glow for labels
+@mixin gold-glow-sm {
+  text-shadow: 0 0 10px rgba(t.$gold-dim, 0.5);
+}
+
+// Inset surface panel
+@mixin inset-panel {
+  background: t.$bg-surface;
+  border: 1px solid t.$border;
+  border-radius: 10px;
+  box-shadow: inset 0 2px 12px rgba(#000, 0.3);
+}
+
+// Standard interactive button base
+@mixin btn-base {
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+  white-space: nowrap;
+  transition: border-color 0.15s, background 0.15s, color 0.15s, filter 0.15s;
+  cursor: pointer;
+
+  &:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+}
+
+// Primary gold gradient button (upload, send)
+@mixin btn-primary {
+  background: linear-gradient(135deg, t.$amber 0%, t.$gold-dim 100%);
+  border: none;
+  color: #1a0f00;
+  font-weight: 900;
+
+  &:hover:not(:disabled) { filter: brightness(1.2); }
+}
+
+// Ghost generator button
+@mixin btn-ghost {
+  background: linear-gradient(135deg, t.$bg-surface-hi 0%, t.$bg-surface-md 100%);
+  border: 1px solid t.$border-strong;
+  color: t.$gold;
+
+  &:hover:not(:disabled) {
+    border-color: t.$gold-dim;
+    background: linear-gradient(135deg, #4a3020 0%, t.$bg-surface-hi 100%);
+    color: t.$gold-bright;
+  }
+}
+
+// Scrollbar styling
+@mixin scrollbar {
+  &::-webkit-scrollbar { width: 6px; height: 6px; }
+  &::-webkit-scrollbar-track { background: t.$bg-raised; }
+  &::-webkit-scrollbar-thumb { background: t.$border-strong; border-radius: 3px; }
+}
+
+// Gold section divider line
+@mixin divider {
+  height: 1px;
+  background: linear-gradient(90deg, transparent, t.$border-strong, transparent);
+  margin: 2px 0;
+}
+
+// Pulsing loading animation
+@mixin shimmer {
+  color: t.$gold-dim;
+  font-style: italic;
+  font-size: 13px;
+  text-align: center;
+  padding: 24px 0;
+  animation: pulse 1.5s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 0.6; }
+  50%       { opacity: 1; }
+}

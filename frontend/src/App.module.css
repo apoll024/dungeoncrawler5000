@@ -1,0 +1,61 @@
+.root {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.layout {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.main {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--bg);
+}
+
+.tabBar {
+  display: flex;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  border-bottom: 2px solid var(--border);
+  background: var(--bg2);
+  flex-shrink: 0;
+}
+
+.tab {
+  padding: 11px 22px;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -2px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: .5px;
+  color: var(--muted);
+  text-transform: uppercase;
+  white-space: nowrap;
+  transition: color .15s, border-color .15s;
+  cursor: pointer;
+}
+.tab:hover { color: var(--text); }
+.tab.active {
+  color: var(--gold2);
+  border-bottom-color: var(--gold);
+  text-shadow: 0 0 10px rgba(201,146,26,0.4);
+}
+
+.paneWrap {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}

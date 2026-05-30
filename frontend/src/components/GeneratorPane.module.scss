@@ -1,0 +1,106 @@
+@use '../styles/tokens' as t;
+@use '../styles/mixins' as m;
+
+.pane {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding: 16px;
+  gap: 12px;
+}
+
+.form {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+  align-items: flex-start;
+}
+
+.input {
+  flex: 1;
+  height: 62px;
+}
+
+.btn {
+  @include m.btn-base;
+  @include m.btn-ghost;
+  padding: 10px 16px;
+  align-self: stretch;
+
+  &.random {
+    background: linear-gradient(135deg, t.$amber 0%, t.$gold-dim 100%);
+    border-color: t.$gold;
+    color: #1a0f00;
+
+    &:hover:not(:disabled) { filter: brightness(1.15); }
+  }
+}
+
+.actions {
+  display: flex;
+  gap: 6px;
+  justify-content: flex-end;
+  flex-shrink: 0;
+}
+
+.outBtn {
+  background: t.$bg-surface-md;
+  border: 1px solid t.$border;
+  border-radius: 5px;
+  color: t.$text-muted;
+  font-size: 10px;
+  font-family: 'Courier New', monospace;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  padding: 4px 10px;
+  text-transform: uppercase;
+  transition: color 0.15s, border-color 0.15s;
+
+  &:hover        { color: t.$gold; border-color: t.$border-strong; }
+  &.copy:hover   { color: t.$success; border-color: rgba(t.$success, 0.5); }
+  &.clear:hover  { color: t.$danger;  border-color: rgba(t.$danger,  0.5); }
+}
+
+.output {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  @include m.inset-panel;
+}
+
+.mapWrap {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  @include m.inset-panel;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.placeholder {
+  color: t.$text-faint;
+  font-style: italic;
+  font-size: 13px;
+  text-align: center;
+  padding: 30px 0;
+}
+
+.loading { @include m.shimmer; }
+
+.error {
+  color: t.$danger;
+  font-style: italic;
+  text-align: center;
+  padding: 24px 0;
+}
+
+.raw {
+  white-space: pre-wrap;
+  color: t.$text;
+  font-family: Georgia, serif;
+  font-size: 12px;
+  line-height: 1.6;
+}
