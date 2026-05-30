@@ -1,4 +1,3 @@
-import { useState } from 'react'
 import { useMutation } from '@tanstack/react-query'
 import { api } from '../api/client'
 import type { Npc, Monster, Setting, DungeonMap } from '../types'
@@ -7,10 +6,16 @@ import { MonsterCard } from './MonsterCard'
 import { SettingCard } from './SettingCard'
 import { MapCanvas } from './MapCanvas'
 import styles from './GeneratorPane.module.scss'
+import { useState } from 'react'
 
 type GenType = 'npc' | 'monster' | 'setting' | 'map'
+type ResultData = Npc | Monster | Setting | DungeonMap | string | null
 
-interface Props { type: GenType }
+interface Props {
+  type: GenType
+  result: ResultData
+  onResult: (value: ResultData) => void
+}
 
 const PLACEHOLDERS: Record<GenType, string> = {
   npc:     "Describe your NPC (optional)... e.g. 'A retired elven soldier haunted by a failed mission'\nLeave blank for a random NPC.",
@@ -20,30 +25,27 @@ const PLACEHOLDERS: Record<GenType, string> = {
 }
 
 const LABELS: Record<GenType, { random: string; generate: string; loading: string }> = {
-  npc:     { random: 'Random NPC',      generate: 'Conjure',    loading: 'The Oracle is weaving your character...' },
-  monster: { random: 'Random Creature', generate: 'Summon',     loading: 'The Oracle is summoning a creature...' },
-  setting: { random: 'Random Setting',  generate: 'Forge',      loading: 'The Oracle is forging a setting...' },
-  map:     { random: 'Random Map',      generate: 'Forge Map',  loading: 'The Oracle is charting the dungeon depths...' },
+  npc:     { random: 'Random NPC',      generate: 'Conjure',   loading: 'The Oracle is weaving your character...' },
+  monster: { random: 'Random Creature', generate: 'Summon',    loading: 'The Oracle is summoning a creature...' },
+  setting: { random: 'Random Setting',  generate: 'Forge',     loading: 'The Oracle is forging a setting...' },
+  map:     { random: 'Random Map',      generate: 'Forge Map', loading: 'The Oracle is charting the dungeon depths...' },
 }
 
-type ResultData = Npc | Monster | Setting | DungeonMap | string | null
-
-export function GeneratorPane({ type }: Props) {
+export function GeneratorPane({ type, result, onResult }: Props) {
   const [desc, setDesc] = useState('')
-  const [result, setResult] = useState<ResultData>(null)
   const labels = LABELS[type]
 
   const mutation = useMutation({
-    mutationFn: async (useDesc: boolean) => {
+    mutationFn: async (useDesc: boolean): Promise<ResultData> => {
       const d = useDesc ? desc : ''
       switch (type) {
-        case 'npc':     { const r = await api.generateNpc(d);     return r.npc }
-        case 'monster': { const r = await api.generateMonster(d); return r.monster }
-        case 'setting': { const r = await api.generateSetting(d); return r.setting }
-        case 'map':     { const r = await api.generateMap(d);     return r.map }
+        case 'npc':     return (await api.generateNpc(d)).npc
+        case 'monster': return (await api.generateMonster(d)).monster
+        case 'setting': return (await api.generateSetting(d)).setting
+        case 'map':     return (await api.generateMap(d)).map
       }
     },
-    onSuccess: setResult,
+    onSuccess: onResult,
   })
 
   function copyOutput() {
@@ -71,7 +73,7 @@ export function GeneratorPane({ type }: Props) {
 
       <div className={styles.actions}>
         <button className={`${styles.outBtn} ${styles.copy}`} onClick={copyOutput}>Copy</button>
-        <button className={`${styles.outBtn} ${styles.clear}`} onClick={() => setResult(null)}>Clear</button>
+        <button className={`${styles.outBtn} ${styles.clear}`} onClick={() => onResult(null)}>Clear</button>
       </div>
 
       <div className={type === 'map' ? styles.mapWrap : styles.output}>

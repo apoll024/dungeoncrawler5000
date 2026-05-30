@@ -2,7 +2,8 @@
 import json, os, sys, tempfile, threading
 from pathlib import Path
 
-from flask import Flask, Response, jsonify, render_template, request, stream_with_context
+from flask import Flask, Response, jsonify, render_template, request, send_from_directory, stream_with_context
+from flask_cors import CORS
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 from search.query import search
@@ -14,9 +15,12 @@ from ingest.db import (
     search_training, rebuild_training_material, training_count,
 )
 
-app = Flask(__name__)
+app = Flask(__name__, static_folder="static", static_url_path="")
+CORS(app)
 
 _ingest_lock = threading.Lock()
+
+STATIC_DIR = Path(__file__).parent / "static"
 
 
 def _parse_generated_json(raw: str):
@@ -182,11 +186,15 @@ def api_status():
 
 # ── UI ────────────────────────────────────────────────────────────────────────
 
-@app.route("/")
-def index():
-    sync_from_chroma()
-    books = list_books()
-    return render_template("index.html", books=books)
+@app.route("/", defaults={"path": ""})
+@app.route("/<path:path>")
+def serve_react(path: str):
+    if path.startswith("api/"):
+        return jsonify({"error": "not found"}), 404
+    file = STATIC_DIR / path
+    if path and file.is_file():
+        return send_from_directory(STATIC_DIR, path)
+    return send_from_directory(STATIC_DIR, "index.html")
 
 
 # ── Book library ──────────────────────────────────────────────────────────────
